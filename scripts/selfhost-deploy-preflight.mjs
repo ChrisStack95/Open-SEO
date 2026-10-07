@@ -49,7 +49,7 @@ if (!env.DATAFORSEO_API_KEY) {
   );
 }
 // When both are set, the deploy provisions no Access resources (hand-managed
-// application) and needs neither ACCESS_ALLOWED_EMAILS nor the access:write
+// application) and needs neither ACCESS_ALLOWED_EMAILS nor the access.write
 // login scope.
 const managedAccess = !(env.TEAM_DOMAIN && env.POLICY_AUD);
 if (managedAccess && !env.ACCESS_ALLOWED_EMAILS) {
@@ -63,34 +63,53 @@ if (managedAccess && !env.ACCESS_ALLOWED_EMAILS) {
 // An explicit API token bypasses login profiles entirely.
 if (!process.env.CLOUDFLARE_API_TOKEN) {
   const profileName = process.env.ALCHEMY_PROFILE || "default";
-  let cloudflare;
-  try {
-    cloudflare = JSON.parse(
-      readFileSync(path.join(homedir(), ".alchemy", "profiles.json"), "utf8"),
-    ).profiles?.[profileName]?.Cloudflare;
-  } catch {
-    cloudflare = undefined;
-  }
+  const readJson = (file) => {
+    try {
+      return JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return undefined;
+    }
+  };
+  // alchemy 2.x stores one file per provider under profiles/<name>/, with the
+  // credential fields (method, scopes, …) nested under `values`. Older
+  // versions used a single profiles.json with `<Provider>` at the top level.
+  const v1 = readJson(
+    path.join(
+      homedir(),
+      ".alchemy",
+      "profiles",
+      profileName,
+      "cloudflare.json",
+    ),
+  );
+  const legacy = readJson(path.join(homedir(), ".alchemy", "profiles.json"))
+    ?.profiles?.[profileName]?.Cloudflare;
+  const cloudflare = v1?.values ?? legacy;
   if (!cloudflare) {
     fail(
-      `No Cloudflare login found (alchemy profile "${profileName}") — run ${cmd("pnpm alchemy login")}`,
-      `first (answer yes to "Customize OAuth scopes?" and enable ${em("access:write")}).`,
+      `No Cloudflare login found (alchemy profile "${profileName}") — run`,
+      `  ${cmd("pnpm alchemy profile edit --add Cloudflare --config deploy/alchemy/alchemy.run.ts")}`,
+      `first (choose OAuth, then All Scopes — or Custom Scopes with ${em("access.write")}).`,
     );
   }
+  // Cloudflare names this scope `access.write`; the docs and earlier versions
+  // of this check used `access:write`.
+  const scopes = Array.isArray(cloudflare.scopes) ? cloudflare.scopes : [];
+  const hasAccessWrite =
+    scopes.includes("access.write") || scopes.includes("access:write");
   if (
     managedAccess &&
     cloudflare.method === "oauth" &&
     Array.isArray(cloudflare.scopes) &&
-    !cloudflare.scopes.includes("access:write")
+    !hasAccessWrite
   ) {
     fail(
-      `Your Cloudflare login is missing the ${em("access:write")} scope, which the deploy needs`,
-      "to provision the Cloudflare Access login gate. Log in again with the scope enabled:",
+      `Your Cloudflare login is missing the ${em("access.write")} scope, which the deploy needs`,
+      "to provision the Cloudflare Access login gate. Reconfigure it with the scope enabled:",
       "",
-      `  ${cmd("pnpm alchemy login --configure")}`,
+      `  ${cmd("pnpm alchemy profile edit --reconfigure Cloudflare --config deploy/alchemy/alchemy.run.ts")}`,
       "",
-      `When asked "Customize OAuth scopes?", answer yes, then select ${em("access:write")}`,
-      "(space to toggle, enter to confirm — keep the preselected defaults).",
+      `When asked for scopes, choose All Scopes — or Custom Scopes with ${em("access.write")} selected.`,
     );
   }
 }

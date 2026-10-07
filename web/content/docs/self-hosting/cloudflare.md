@@ -34,11 +34,11 @@ pnpm install
 ## 2) Log in to Cloudflare (once)
 
 ```bash
-pnpm alchemy login                # answer yes to "Customize OAuth scopes?" and enable access:write
-pnpm alchemy cloudflare bootstrap # deploys alchemy's state-store Worker to your account
+pnpm alchemy profile edit --add Cloudflare --config deploy/alchemy/alchemy.run.ts # choose OAuth, then All Scopes
+pnpm alchemy provider cloudflare bootstrap                                        # deploys alchemy's state-store Worker to your account
 ```
 
-Already logged in from before without the `access:write` scope? Run `pnpm alchemy login --configure` — a plain repeat login doesn't re-ask about scopes.
+`profile edit` needs the stack entry point (`deploy/alchemy/alchemy.run.ts`); without it alchemy looks for a root `alchemy.run.ts` and fails. Choose **OAuth**, then **All Scopes** — the managed Access gate needs `access.write`, which the Basic set omits. Already logged in without the Access scope? Run `pnpm alchemy profile edit --reconfigure Cloudflare --config deploy/alchemy/alchemy.run.ts` — a plain `--add` keeps the existing scopes.
 
 ## 3) Create `.env.selfhost`
 
