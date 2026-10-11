@@ -34,7 +34,7 @@ export const getSfCrawlStatusTool = {
     outputSchema: z.object({ configured: z.boolean() }).passthrough(),
   },
   handler: async (args: Args) => {
-    if (!isSfMcpConfigured()) return reply(notConfigured);
+    if (!(await isSfMcpConfigured())) return reply(notConfigured);
     try {
       if (args.crawlId)
         return reply({

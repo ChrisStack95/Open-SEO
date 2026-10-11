@@ -42,7 +42,7 @@ export const readSfCrawlDataTool = {
     outputSchema: z.object({ configured: z.boolean() }).passthrough(),
   },
   handler: async (args: Args) => {
-    if (!isSfMcpConfigured()) return reply(notConfigured);
+    if (!(await isSfMcpConfigured())) return reply(notConfigured);
     if (!args.exportId && !args.crawlId)
       return reply({
         configured: true,

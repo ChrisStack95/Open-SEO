@@ -39,7 +39,7 @@ export const runSfCrawlTool = {
     outputSchema: z.object({ configured: z.boolean() }).passthrough(),
   },
   handler: async (args: Args) => {
-    if (!isSfMcpConfigured()) return reply(notConfigured);
+    if (!(await isSfMcpConfigured())) return reply(notConfigured);
     try {
       const upstream = await callSfTool("crawl_site", {
         url: args.siteUrl,

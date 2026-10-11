@@ -134,9 +134,9 @@ describe("Screaming Frog MCP client", () => {
     });
   });
 
-  it("reports whether SF_MCP_URL is configured", () => {
-    expect(isSfMcpConfigured()).toBe(true);
+  it("reports whether SF_MCP_URL is configured", async () => {
+    expect(await isSfMcpConfigured()).toBe(true);
     delete process.env.SF_MCP_URL;
-    expect(isSfMcpConfigured()).toBe(false);
+    expect(await isSfMcpConfigured()).toBe(false);
   });
 });

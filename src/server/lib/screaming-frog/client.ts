@@ -1,3 +1,5 @@
+import { getOptionalEnvValue } from "@/server/lib/runtime-env";
+
 type JsonRpcMessage = {
   id?: number;
   result?: unknown;
@@ -22,8 +24,8 @@ export function sanitizedSfSnippet(value: string): string {
     .replace(/[A-Za-z0-9+/_=-]{32,}/g, "[redacted]");
 }
 
-export function isSfMcpConfigured(): boolean {
-  return Boolean(process.env.SF_MCP_URL?.trim());
+export async function isSfMcpConfigured(): Promise<boolean> {
+  return Boolean((await getOptionalEnvValue("SF_MCP_URL"))?.trim());
 }
 
 function parseSseDataFrames(raw: string): string[] {
@@ -107,14 +109,14 @@ async function send(
   message: Record<string, unknown>,
   id: number | null,
 ): Promise<unknown> {
-  const url = process.env.SF_MCP_URL;
+  const url = await getOptionalEnvValue("SF_MCP_URL");
   if (!url?.trim()) throw new Error("SF_MCP_URL is not configured");
   const headers: Record<string, string> = {
     "content-type": "application/json",
     accept: "application/json, text/event-stream",
   };
-  if (process.env.SF_MCP_TOKEN)
-    headers.Authorization = `Bearer ${process.env.SF_MCP_TOKEN}`;
+  const token = await getOptionalEnvValue("SF_MCP_TOKEN");
+  if (token) headers.Authorization = `Bearer ${token}`;
   if (sessionId) headers["mcp-session-id"] = sessionId;
   if (protocolVersion) headers["mcp-protocol-version"] = protocolVersion;
   const response = await fetch(url, {
@@ -176,12 +178,13 @@ export async function callSfTool(
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
-  if (sessionUrl !== undefined && sessionUrl !== process.env.SF_MCP_URL) {
+  const url = await getOptionalEnvValue("SF_MCP_URL");
+  if (sessionUrl !== undefined && sessionUrl !== url) {
     sessionId = undefined;
     protocolVersion = undefined;
     initialized = false;
   }
-  sessionUrl = process.env.SF_MCP_URL;
+  sessionUrl = url;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       await ensureInitialized();
