@@ -10,10 +10,10 @@ const inputSchema = {
   rankingsCsv: z
     .string()
     .min(1)
-    .max(2 * 1024 * 1024, "Rankings CSV/TSV must be 2 MB or smaller."),
+    .max(2_000_000, "Rankings CSV/TSV must be 2 million characters or fewer."),
   crawlCsv: z
     .string()
-    .max(2 * 1024 * 1024, "Crawl CSV/TSV must be 2 MB or smaller.")
+    .max(2_000_000, "Crawl CSV/TSV must be 2 million characters or fewer.")
     .optional(),
   brandRules: z
     .object({

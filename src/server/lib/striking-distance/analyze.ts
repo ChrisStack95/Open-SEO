@@ -73,23 +73,29 @@ const navigationalUrl =
   /\/(?:login|sign-?in|sign-?up|register|careers|jobs|contact|about|sitemap|privacy|terms|cookie|faq|help|support)(?:\/|$)/i;
 
 function recommendation(keyword: string, rules: BrandRules) {
-  const forbidden = rules.forbiddenTerms ?? [];
+  const plainText = (text: string) =>
+    text.replace(/<[^>]*>/g, " ").replace(/[<>\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  const forbidden = (rules.forbiddenTerms ?? []).map(plainText).filter(Boolean);
   const containsForbidden = (text: string) =>
-    forbidden.some(
-      (term) => term && text.toLowerCase().includes(term.toLowerCase()),
-    );
-  const safeKeyword = containsForbidden(keyword)
-    ? "Explore our range"
-    : keyword;
-  const suffix = rules.titleSuffix ? ` – ${rules.titleSuffix}` : "";
-  const title = `${safeKeyword}${suffix}`.slice(0, 60);
-  const vocabulary = (rules.preferredVocabulary ?? []).find(
-    (term) => !containsForbidden(term),
+    forbidden.some((term) => text.toLowerCase().includes(term.toLowerCase()));
+  const safeKeyword = plainText(keyword);
+  const target = safeKeyword && !containsForbidden(safeKeyword) ? safeKeyword : "Explore our range";
+  const suffix = plainText(rules.titleSuffix ?? "");
+  const fullTitle = suffix && !containsForbidden(suffix) ? `${target} – ${suffix}` : target;
+  const titleCandidate = fullTitle.length <= 60 ? fullTitle : target;
+  const title = titleCandidate.length <= 60
+    ? titleCandidate
+    : titleCandidate.slice(0, 61).replace(/\s+\S*$/, "").trim();
+  const vocabulary = (rules.preferredVocabulary ?? []).map(plainText).find(
+    (term) => term && !containsForbidden(term),
   );
-  const meta = `Explore ${safeKeyword}${vocabulary ? ` and ${vocabulary}` : ""}${rules.brandName && !containsForbidden(rules.brandName) ? ` from ${rules.brandName}` : ""}.`;
+  const brand = plainText(rules.brandName ?? "");
+  const meta = `Explore ${target}${vocabulary ? ` and ${vocabulary}` : ""}${brand && !containsForbidden(brand) ? ` from ${brand}` : ""}.`;
+  const cap = rules.metaLengthCap ?? 155;
+  const bounded = meta.length <= cap ? meta : meta.slice(0, cap + 1).replace(/\s+\S*$/, "").trim();
   return {
     recommendedTitle: title,
-    recommendedMeta: meta.slice(0, rules.metaLengthCap ?? 155),
+    recommendedMeta: bounded,
   };
 }
 
@@ -120,7 +126,7 @@ export function analyzeStrikingDistance(input: {
   );
   const groups = new Map<
     string,
-    { protected: number[]; keywords: Keyword[] }
+    { protected: Set<string>; keywords: Keyword[] }
   >();
   const rules = input.brandRules ?? {};
   for (const row of rankingRows) {
@@ -128,10 +134,10 @@ export function analyzeStrikingDistance(input: {
     const position = Number(row.position);
     const volume = Number(row.volume);
     if (!row.keyword.trim() || !url || !Number.isFinite(position)) continue;
-    const group = groups.get(url) ?? { protected: [], keywords: [] };
+    const group = groups.get(url) ?? { protected: new Set<string>(), keywords: [] };
     groups.set(url, group);
     if (position <= 3) {
-      group.protected.push(Number.isFinite(volume) ? volume : 0);
+      group.protected.add(row.keyword.toLowerCase());
       continue;
     }
     if (
@@ -161,13 +167,24 @@ export function analyzeStrikingDistance(input: {
     const previous = Number(row.previous);
     const delta =
       row.previous && Number.isFinite(previous) ? previous - position : 0;
-    const trend = !row.previous
+    const trendValues = row.trends?.match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+    const trendFromVolume = (() => {
+      if (trendValues.length < 6) return null;
+      const early = (trendValues[0] + trendValues[1] + trendValues[2]) / 3;
+      const recent = (trendValues.slice(-3).reduce((sum, value) => sum + value, 0)) / 3;
+      if (early === 0) return recent > 0 ? "new" : "stable";
+      const change = (recent - early) / early;
+      return change > 0.15 ? "rising" : change < -0.15 ? "declining" : "stable";
+    })();
+    const trend = trendFromVolume ?? (!row.previous
       ? "unknown"
-      : delta > 1
-        ? "rising"
-        : delta < -1
-          ? "declining"
-          : "stable";
+      : previous === 0
+        ? "new"
+        : delta > 1
+          ? "rising"
+          : delta < -1
+            ? "declining"
+            : "stable");
     const difficulty =
       row.difficulty && Number.isFinite(Number(row.difficulty))
         ? Number(row.difficulty)
@@ -178,7 +195,7 @@ export function analyzeStrikingDistance(input: {
           (Math.log10(Math.max(volume, 1) + 1) / Math.log10(5001)) * 55 +
           Math.max(0, (100 - difficulty) / 100) * 15 +
           Math.min(Math.max(delta / 5, -1), 1) * 10) *
-          10,
+          (group.protected.has(row.keyword.toLowerCase()) ? 1 : 10),
       ) / 10;
     const decision =
       trend === "rising" ||
@@ -207,16 +224,18 @@ export function analyzeStrikingDistance(input: {
           .toLowerCase()
           .split(/\s+/)
           .filter((word) => word.length > 3);
+        const title = crawl.title.toLowerCase();
+        const meta = crawl.meta.toLowerCase();
+        const phrase = keyword.keyword.toLowerCase();
+        if (!words.length) {
+          return !(title.includes(phrase) && meta.includes(phrase));
+        }
+        const titleMatches = words.filter((word) => title.includes(word))
+          .length;
+        const metaMatches = words.filter((word) => meta.includes(word)).length;
         return (
-          !words.length ||
-          words.filter((word) => crawl.title.toLowerCase().includes(word))
-            .length /
-            words.length <
-            0.75 ||
-          words.filter((word) => crawl.meta.toLowerCase().includes(word))
-            .length /
-            words.length <
-            0.75
+          titleMatches / words.length < 0.75 ||
+          metaMatches / words.length < 0.75
         );
       });
       const primary = actionable[0];
@@ -225,7 +244,7 @@ export function analyzeStrikingDistance(input: {
         {
           url,
           primaryKeyword: primary.keyword,
-          protectedCount: group.protected.length,
+          protectedCount: group.protected.size,
           keywords,
           currentTitle: crawl?.title ?? "",
           currentMeta: crawl?.meta ?? "",

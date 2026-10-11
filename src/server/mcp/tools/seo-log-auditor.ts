@@ -10,7 +10,7 @@ const inputSchema = {
   accessLogs: z
     .string()
     .min(1)
-    .max(5 * 1024 * 1024, "Access logs must be 5 MB or smaller.")
+    .max(5_000_000, "Access logs must be 5 million characters or fewer.")
     .describe(
       "Raw nginx combined access-log lines; pasted text only. No URL fetching.",
     ),

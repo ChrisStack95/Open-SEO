@@ -45,6 +45,55 @@ describe("analyzeStrikingDistance", () => {
     expect(result[0].recommendedMeta.toLowerCase()).toContain("sound");
   });
 
+  it("downweights a keyword that also has a protected top-three ranking before selecting a primary", () => {
+    const result = analyzeStrikingDistance({
+      rankingsCsv:
+        "Keyword,Position,Search Volume,URL\n" +
+        "protected phrase,2,2000,https://example.com/page\n" +
+        "protected phrase,4,2000,https://example.com/page\n" +
+        "new phrase,8,300,https://example.com/page",
+    });
+    expect(result[0].primaryKeyword).toBe("new phrase");
+    expect(result[0].keywords[0].keyword).toBe("new phrase");
+    expect(result[0].keywords[1].score).toBeLessThan(result[0].keywords[0].score);
+  });
+
+  it("prefers Semrush search-volume Trends over a conflicting position movement", () => {
+    const result = analyzeStrikingDistance({
+      rankingsCsv:
+        'Keyword,Position,Search Volume,URL,Previous Position,Trends\n' +
+        'growing topic,12,100,https://example.com/page,8,"[10,10,10,40,40,40]"',
+    });
+    expect(result[0].keywords[0]).toMatchObject({ trend: "rising", decision: "OPTIMISE" });
+  });
+
+  it("retains short keywords unless the whole phrase appears in both title and meta", () => {
+    const result = analyzeStrikingDistance({
+      rankingsCsv: "Keyword,Position,Search Volume,URL\ncat,6,100,https://example.com/page",
+      crawlCsv: "Address,Title 1,Meta Description 1\nhttps://example.com/page,Cat supplies,Dog care",
+    });
+    expect(result[0].primaryKeyword).toBe("cat");
+  });
+
+  it("emits plain-text-safe drafts from untrusted keywords and brand rules", () => {
+    const result = analyzeStrikingDistance({
+      rankingsCsv: 'Keyword,Position,Search Volume,URL\n"<script>alert</script>",4,300,https://example.com/page',
+      brandRules: { titleSuffix: "<b>Brand</b>\u0007", brandName: "Shop<online>" },
+    });
+    expect(result[0].recommendedTitle).not.toMatch(/[<>\u0000-\u001f\u007f]/);
+    expect(result[0].recommendedMeta).not.toMatch(/[<>\u0000-\u001f\u007f]/);
+  });
+
+  it("drops an overlong suffix rather than cutting a keyword mid-word", () => {
+    const keyword = "wonderful speakers with outstanding immersive audio quality";
+    const result = analyzeStrikingDistance({
+      rankingsCsv: `Keyword,Position,Search Volume,URL\n${keyword},4,300,https://example.com/page`,
+      brandRules: { titleSuffix: "A Particularly Long Brand Name", forbiddenTerms: ["particularly"] },
+    });
+    expect(result[0].recommendedTitle).toBe(keyword);
+    expect(result[0].recommendedTitle).not.toContain("Particularly");
+  });
+
   it("parses quoted commas, escaped quotes, newlines and TSV fields", () => {
     const result = analyzeStrikingDistance({
       rankingsCsv:
