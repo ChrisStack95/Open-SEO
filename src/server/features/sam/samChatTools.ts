@@ -42,6 +42,7 @@ import {
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { removeSavedKeywordsTool } from "@/server/mcp/tools/remove-saved-keywords";
 import { redirectMappingTool } from "@/server/mcp/tools/redirect-mapping";
+import { generateLlmsTxtTool } from "@/server/mcp/tools/llms-txt";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
 import {
   getGoogleAnalyticsAudienceBreakdownTool,
@@ -459,6 +460,7 @@ export function buildSamMcpTools(
     ),
     run_site_audit: adaptTool(runSiteAuditTool),
     map_redirects: adaptTool(redirectMappingTool),
+    generate_llms_txt: adaptTool(generateLlmsTxtTool),
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),

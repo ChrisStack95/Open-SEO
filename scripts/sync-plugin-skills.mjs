@@ -20,6 +20,7 @@ const skills = [
   "keyword-research",
   "link-prospecting",
   "local-seo",
+  "llms-txt",
   "redirect-mapping",
   "seo-audit",
   "seo-coach",
