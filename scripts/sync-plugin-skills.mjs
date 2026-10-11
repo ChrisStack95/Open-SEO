@@ -21,7 +21,9 @@ const skills = [
   "link-prospecting",
   "local-seo",
   "seo-audit",
+  "seo-log-auditor",
   "seo-coach",
+  "striking-distance-audit",
   "seo-project-setup",
   "seo-report",
 ];

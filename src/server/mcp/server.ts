@@ -109,6 +109,8 @@ import {
 } from "@/server/mcp/tools/site-audit-cleanup-tools";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
 import { explorePromptTool } from "@/server/mcp/tools/explore-prompt";
+import { seoLogAuditorTool } from "@/server/mcp/tools/seo-log-auditor";
+import { strikingDistanceTool } from "@/server/mcp/tools/striking-distance";
 
 type ToolSchema = z.ZodType | z.ZodRawShape;
 
@@ -268,6 +270,8 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getAuditStatusTool);
   register(getAuditIssuesTool);
   register(getAuditPagesTool);
+  register(seoLogAuditorTool);
+  register(strikingDistanceTool);
   register(saveReportTool);
   register(listReportsTool);
   register(getReportTool);
