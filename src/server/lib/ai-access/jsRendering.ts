@@ -45,7 +45,7 @@ export function checkJsRendering(html: string) {
       reason: `${bundled.length} bundled script(s)`,
     });
   const text = $.root().text();
-  const prices = [...new Set(text.match(/[\$£€]\s?\d+[\.,]?\d*/g) ?? [])].slice(
+  const prices = [...new Set(text.match(/[$£€]\s?\d+[.,]?\d*/g) ?? [])].slice(
     0,
     20,
   );

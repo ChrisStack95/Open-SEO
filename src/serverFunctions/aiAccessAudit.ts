@@ -6,7 +6,6 @@ import { captureServerEvent } from "@/server/lib/posthog";
 import {
   startAiAccessAuditSchema,
   getAiAccessAuditStatusSchema,
-  getAiAccessAuditResultsSchema,
 } from "@/types/schemas/ai-access-audit";
 
 export const startAiAccessAudit = createServerFn({ method: "POST" })
@@ -40,7 +39,7 @@ export const getAiAccessAuditStatus = createServerFn({ method: "POST" })
   );
 export const getAiAccessAuditResults = createServerFn({ method: "POST" })
   .middleware(requireProjectContext)
-  .validator(getAiAccessAuditResultsSchema)
+  .validator(getAiAccessAuditStatusSchema)
   .handler(({ data, context }) =>
     AiAccessAuditService.getResults({
       projectId: context.projectId,

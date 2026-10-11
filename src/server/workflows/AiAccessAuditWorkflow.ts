@@ -8,11 +8,7 @@ import {
   normalizeAndValidateStartUrl,
   resolveStartUrlRedirects,
 } from "@/server/lib/audit/url-policy";
-import { analyzeHtml } from "@/server/lib/audit/page-analyzer";
 import { AI_BOTS, BROWSER_UA } from "@/server/lib/ai-access/bots";
-import { checkJsRendering } from "@/server/lib/ai-access/jsRendering";
-import { checkSchema } from "@/server/lib/ai-access/schemaCheck";
-import { checkPageMeta } from "@/server/lib/ai-access/pageMeta";
 import { checkLlmTxt, LLM_PATHS } from "@/server/lib/ai-access/llmTxt";
 import {
   checkWellKnown,
@@ -42,6 +38,7 @@ const DB_STEP = {
   retries: { limit: 1, delay: "10 seconds" as const },
   timeout: "5 minutes" as const,
 };
+const WELL_KNOWN_PATH_SET = new Set<string>(WELL_KNOWN_PATHS);
 
 async function readLimited(response: Response, limit: number) {
   if (Number(response.headers.get("content-length")) > limit)
@@ -86,6 +83,17 @@ export class AiAccessAuditWorkflow extends WorkflowEntrypoint<Env, Params> {
     const { auditId, projectId, startUrl } = event.payload;
     try {
       const page = await step.do("fetch-page", FETCH_STEP, async () => {
+        const [
+          { analyzeHtml },
+          { checkJsRendering },
+          { checkSchema },
+          { checkPageMeta },
+        ] = await Promise.all([
+          import("@/server/lib/audit/page-analyzer"),
+          import("@/server/lib/ai-access/jsRendering"),
+          import("@/server/lib/ai-access/schemaCheck"),
+          import("@/server/lib/ai-access/pageMeta"),
+        ]);
         const validated = await normalizeAndValidateStartUrl(startUrl);
         const resolved = await resolveStartUrlRedirects(validated);
         const { response, text } = await fetchChecked(
@@ -99,7 +107,7 @@ export class AiAccessAuditWorkflow extends WorkflowEntrypoint<Env, Params> {
         return {
           url: resolved.url,
           js: checkJsRendering(text),
-          schema: JSON.stringify(checkSchema(text)),
+          schema: checkSchema(text),
           meta: checkPageMeta(text, response.headers.get("x-robots-tag")),
           title: analysis.title ?? "",
         };
@@ -116,43 +124,44 @@ export class AiAccessAuditWorkflow extends WorkflowEntrypoint<Env, Params> {
                 BROWSER_UA,
                 path === "/robots.txt"
                   ? 15_000
-                  : WELL_KNOWN_PATHS.includes(path as never)
+                  : WELL_KNOWN_PATH_SET.has(path)
                     ? 8_000
                     : 10_000,
                 cap,
               );
-              return [
-                path,
-                {
-                  status: response.status,
-                  text: text.slice(
-                    0,
-                    path === "/robots.txt"
-                      ? cap
-                      : WELL_KNOWN_PATHS.includes(path as never)
-                        ? 2000
-                        : 5000,
-                  ),
-                  url: response.url,
-                  contentType:
-                    response.headers.get("content-type") ?? undefined,
-                },
-              ] as const;
+              const fetched: FetchedText = {
+                status: response.status,
+                text: text.slice(
+                  0,
+                  path === "/robots.txt"
+                    ? cap
+                    : WELL_KNOWN_PATH_SET.has(path)
+                      ? 2000
+                      : 5000,
+                ),
+                url: response.url,
+                contentType: response.headers.get("content-type") ?? undefined,
+              };
+              return [path, fetched] as const;
             } catch {
-              return [
-                path,
-                { status: 0, text: "", url: new URL(path, origin).toString() },
-              ] as const;
+              const failed: FetchedText = {
+                status: 0,
+                text: "",
+                url: new URL(path, origin).toString(),
+              };
+              return [path, failed] as const;
             }
           }),
         );
-        return Object.fromEntries(entries) as Record<string, FetchedText>;
+        return Object.fromEntries(entries);
       });
       const robots = checkRobots(
         origin,
         aux["/robots.txt"]?.status === 200 ? aux["/robots.txt"].text : null,
       );
       const botCrawl = await step.do("bot-crawl", FETCH_STEP, async () => {
+        const { analyzeHtml } =
+          await import("@/server/lib/audit/page-analyzer");
         const bots = Object.entries(AI_BOTS).flatMap(([company, agents]) =>
           Object.entries(agents).map(([name, ua]) => ({ company, name, ua })),
         );
@@ -212,7 +221,7 @@ export class AiAccessAuditWorkflow extends WorkflowEntrypoint<Env, Params> {
       });
       await pgStep(step, "finalize", DB_STEP, async () => {
         const llmTxt = checkLlmTxt(origin, aux);
-        const schema = JSON.parse(page.schema) as AiAccessResults["schema"];
+        const schema = page.schema;
         const results: AiAccessResults = {
           url: page.url,
           js: page.js,

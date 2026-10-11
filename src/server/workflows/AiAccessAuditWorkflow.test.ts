@@ -36,16 +36,20 @@ vi.mock("@/server/lib/audit/url-policy", () => ({
   resolveStartUrlRedirects: mocks.redirects,
 }));
 
-const step = {
-  do: (_name: string, _config: unknown, fn: () => unknown) => fn(),
-} as unknown as WorkflowStep;
 const customer = {
   organizationId: "org",
   userId: "user",
   userEmail: "u@example.com",
 };
-const run = () =>
-  new AiAccessAuditWorkflow({} as ExecutionContext, {} as Env).run(
+const run = () => {
+  // The mocked base and pgStep use no execution context, bindings, or step methods besides do.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- minimal test runtime boundary
+  const workflow = new AiAccessAuditWorkflow({} as ExecutionContext, {} as Env);
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- pgStep is mocked; only do executes
+  const step = {
+    do: (_name: string, _config: unknown, fn: () => unknown) => fn(),
+  } as unknown as WorkflowStep;
+  return workflow.run(
     {
       payload: {
         auditId: "audit",
@@ -53,9 +57,12 @@ const run = () =>
         startUrl: "https://example.com/",
         customer,
       },
-    } as never,
+      instanceId: "audit",
+      timestamp: new Date("2026-09-05T12:00:00Z"),
+    },
     step,
   );
+};
 
 beforeEach(() => {
   mocks.validate.mockResolvedValue("https://example.com/");
@@ -74,8 +81,11 @@ it("finalizes with results and scores", async () => {
     "audit",
     "project",
     expect.objectContaining({
+      // oxlint-disable-next-line typescript/no-unsafe-assignment -- expect.any matcher into typed mock arg
       overallScore: expect.any(Number),
+      // oxlint-disable-next-line typescript/no-unsafe-assignment -- expect.any matcher into typed mock arg
       jsScore: expect.any(Number),
+      // oxlint-disable-next-line typescript/no-unsafe-assignment -- expect.any matcher into typed mock arg
       results: expect.objectContaining({ botCrawl: expect.any(Array) }),
     }),
   );

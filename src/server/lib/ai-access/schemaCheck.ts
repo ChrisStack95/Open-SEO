@@ -23,6 +23,15 @@ export const SCHEMA_KEY_FIELDS: Record<string, string[]> = {
   ItemList: ["itemListElement", "numberOfItems"],
 };
 
+type JsonLeaf = string | number | boolean | null;
+type CollectedSchema = {
+  format: string;
+  type: string;
+  data: Record<
+    string,
+    JsonLeaf | JsonLeaf[] | Record<string, JsonLeaf | JsonLeaf[]>
+  >;
+};
 type SchemaData = Record<string, unknown>;
 const isObject = (value: unknown): value is SchemaData =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -38,30 +47,40 @@ function flatten(value: unknown, types: Set<string>): void {
     for (const name of names) if (typeof name === "string") types.add(name);
   for (const child of Object.values(value)) flatten(child, types);
 }
+const schemaTypeName = (entry: SchemaData): string => {
+  const type = entry["@type"];
+  if (typeof type === "string") return type;
+  if (Array.isArray(type))
+    return type
+      .filter((name): name is string => typeof name === "string")
+      .join(", ");
+  return "Unknown";
+};
+function collectSchemas(data: unknown, schemas: CollectedSchema[]): void {
+  const items = Array.isArray(data) ? data : [data];
+  for (const item of items) {
+    if (!isObject(item)) continue;
+    const entries = Array.isArray(item["@graph"]) ? item["@graph"] : [item];
+    for (const entry of entries) {
+      if (!isObject(entry)) continue;
+      schemas.push({
+        format: "JSON-LD",
+        type: schemaTypeName(entry),
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse output is JSON by construction
+        data: entry as CollectedSchema["data"],
+      });
+    }
+  }
+}
 export function checkSchema(html: string) {
   const $ = cheerio.load(html);
-  const schemas: { format: string; type: string; data: SchemaData }[] = [];
+  const schemas: CollectedSchema[] = [];
   const types = new Set<string>();
   $("script[type='application/ld+json']").each((_, element) => {
     try {
       const data: unknown = JSON.parse($(element).html() ?? "");
       flatten(data, types);
-      const items = Array.isArray(data) ? data : [data];
-      for (const item of items)
-        if (isObject(item)) {
-          const entries = Array.isArray(item["@graph"])
-            ? item["@graph"]
-            : [item];
-          for (const entry of entries)
-            if (isObject(entry))
-              schemas.push({
-                format: "JSON-LD",
-                type: Array.isArray(entry["@type"])
-                  ? entry["@type"].join(", ")
-                  : String(entry["@type"] ?? "Unknown"),
-                data: entry,
-              });
-        }
+      collectSchemas(data, schemas);
     } catch {
       schemas.push({ format: "JSON-LD", type: "Parse Error", data: {} });
     }

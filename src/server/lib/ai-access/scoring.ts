@@ -1,10 +1,3 @@
-export const BENCHMARKS = {
-  js: 60,
-  llmTxt: 0,
-  robots: 80,
-  schema: 50,
-} as const;
-
 export function computeOverall(
   js: number,
   llm: number,

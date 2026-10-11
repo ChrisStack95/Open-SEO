@@ -1,3 +1,10 @@
+import type { checkJsRendering } from "./jsRendering";
+import type { checkLlmTxt } from "./llmTxt";
+import type { checkPageMeta } from "./pageMeta";
+import type { checkRobots } from "./robotsCheck";
+import type { checkSchema } from "./schemaCheck";
+import type { checkWellKnown } from "./wellKnown";
+
 export interface FetchedText {
   status: number;
   text: string;
@@ -20,11 +27,11 @@ export interface BotCrawlResult {
 export interface AiAccessResults {
   url: string;
   overallScore: number;
-  js: ReturnType<typeof import("./jsRendering").checkJsRendering>;
-  llmTxt: ReturnType<typeof import("./llmTxt").checkLlmTxt>;
-  robots: ReturnType<typeof import("./robotsCheck").checkRobots>;
-  schema: ReturnType<typeof import("./schemaCheck").checkSchema>;
-  pageMeta: ReturnType<typeof import("./pageMeta").checkPageMeta>;
-  wellKnown: ReturnType<typeof import("./wellKnown").checkWellKnown>;
+  js: ReturnType<typeof checkJsRendering>;
+  llmTxt: ReturnType<typeof checkLlmTxt>;
+  robots: ReturnType<typeof checkRobots>;
+  schema: ReturnType<typeof checkSchema>;
+  pageMeta: ReturnType<typeof checkPageMeta>;
+  wellKnown: ReturnType<typeof checkWellKnown>;
   botCrawl: BotCrawlResult[];
 }

@@ -8,7 +8,6 @@ export const getAiAccessAuditStatusSchema = z.object({
   projectId: z.string().min(1),
   auditId: z.string().min(1).optional(),
 });
-export const getAiAccessAuditResultsSchema = getAiAccessAuditStatusSchema;
 export const aiAccessAuditResultsSchema = z.object({
   url: z.string(),
   overallScore: z.number(),

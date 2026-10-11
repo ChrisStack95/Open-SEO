@@ -1,8 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import type { AiAccessAuditRepository } from "@/server/features/ai-access/repositories/AiAccessAuditRepository";
 import { AiAccessAuditService } from "./AiAccessAuditService";
 
 const mocks = vi.hoisted(() => ({
-  create: vi.fn(),
+  create: vi.fn<typeof AiAccessAuditRepository.create>(),
   workflowCreate: vi.fn(),
   validate: vi.fn(),
   redirects: vi.fn(),

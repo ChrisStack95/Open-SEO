@@ -22,6 +22,30 @@ vi.mock("@/server/features/ai-access/services/AiAccessAuditService", () => ({
   AiAccessAuditService: mocks,
 }));
 
+const auditResults = {
+  url: "https://example.com/",
+  overallScore: 75,
+  js: { score: 60, riskFactors: [] },
+  llmTxt: { score: 0, files: {} },
+  robots: {
+    score: 80,
+    found: true,
+    aiAgents: {},
+    blockedResources: [],
+    sensitivePaths: {},
+  },
+  schema: { score: 50, found: true, schemas: [] },
+  pageMeta: {
+    metaTags: [],
+    xRobotsTag: null,
+    nosnippetElements: 0,
+    htmlLength: 1000,
+    textLength: 50,
+  },
+  wellKnown: {},
+  botCrawl: [],
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.getProjectForOrganization.mockResolvedValue({ id: "project_1" });
@@ -37,7 +61,7 @@ beforeEach(() => {
   });
   mocks.getResults.mockResolvedValue({
     audit: { id: "audit_1", status: "completed" },
-    results: JSON.stringify({ overallScore: 75 }),
+    results: JSON.stringify(auditResults),
   });
 });
 
@@ -51,8 +75,13 @@ describe("AI access audit tools", () => {
       expect.objectContaining({
         projectId: "project_1",
         url: "https://example.com/",
-        actorUserId: expect.any(String),
-        customer: expect.any(Object),
+        actorUserId: "user_123",
+        // oxlint-disable-next-line typescript/no-unsafe-assignment -- objectContaining matcher into typed mock arg
+        customer: expect.objectContaining({
+          organizationId: "org_123",
+          userId: "user_123",
+          userEmail: "alice@example.com",
+        }),
       }),
     );
     expect(response.structuredContent).toMatchObject({ auditId: "audit_1" });

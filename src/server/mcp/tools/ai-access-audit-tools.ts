@@ -9,6 +9,7 @@ import {
 } from "@/server/mcp/output-schemas";
 import { withMcpProjectAuth } from "@/server/mcp/project-auth";
 import { projectIdSchema } from "@/server/mcp/schemas";
+import { aiAccessAuditResultsSchema } from "@/types/schemas/ai-access-audit";
 
 const runInputSchema = {
   projectId: projectIdSchema,
@@ -125,7 +126,9 @@ export const getAiAccessAuditResultsTool = {
         "NOT_FOUND",
         "No AI access audit found in this project.",
       );
-    const results = response.results ? JSON.parse(response.results) : null;
+    const results = response.results
+      ? aiAccessAuditResultsSchema.parse(JSON.parse(response.results))
+      : null;
     return mcpResponse({
       text: results
         ? `AI access score: ${results.overallScore}/100. Check each component and its evidence before recommending changes.`

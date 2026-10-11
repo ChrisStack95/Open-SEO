@@ -5,10 +5,14 @@ export const aiAccessAudits = pgTable(
   "ai_access_audits",
   {
     id: text("id").primaryKey(),
-    projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     startedByUserId: text("started_by_user_id").notNull(),
     startUrl: text("start_url").notNull(),
-    status: text("status", { enum: ["running", "completed", "failed"] }).notNull().default("running"),
+    status: text("status", { enum: ["running", "completed", "failed"] })
+      .notNull()
+      .default("running"),
     workflowInstanceId: text("workflow_instance_id"),
     overallScore: integer("overall_score"),
     jsScore: integer("js_score"),
@@ -21,5 +25,10 @@ export const aiAccessAudits = pgTable(
     createdAt: text("created_at").notNull(),
     completedAt: text("completed_at"),
   },
-  (table) => [index("ai_access_audits_project_created_idx").on(table.projectId, table.createdAt)],
+  (table) => [
+    index("ai_access_audits_project_created_idx").on(
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
 );
