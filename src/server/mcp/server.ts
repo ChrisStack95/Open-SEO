@@ -104,6 +104,11 @@ import {
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
 import {
+  getAiAccessAuditResultsTool,
+  getAiAccessAuditStatusTool,
+  runAiAccessAuditTool,
+} from "@/server/mcp/tools/ai-access-audit-tools";
+import {
   deleteSiteAuditTool,
   listSiteAuditsTool,
 } from "@/server/mcp/tools/site-audit-cleanup-tools";
@@ -268,6 +273,9 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getAuditStatusTool);
   register(getAuditIssuesTool);
   register(getAuditPagesTool);
+  register(runAiAccessAuditTool);
+  register(getAiAccessAuditStatusTool);
+  register(getAiAccessAuditResultsTool);
   register(saveReportTool);
   register(listReportsTool);
   register(getReportTool);

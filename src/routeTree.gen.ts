@@ -44,6 +44,7 @@ import { Route as STokenIndexRouteImport } from './routes/s/$token/index'
 import { Route as STokenOgDotpngRouteImport } from './routes/s/$token/og[.]png'
 import { Route as STokenRawRouteImport } from './routes/s/$token/raw'
 import { Route as AppPProjectIdIndexRouteImport } from './routes/_app/p/$projectId/index'
+import { Route as AppPProjectIdAiAccessAuditRouteImport } from './routes/_app/p/$projectId/ai-access-audit'
 import { Route as AppPProjectIdAiVisibilityRouteImport } from './routes/_app/p/$projectId/ai-visibility'
 import { Route as AppPProjectIdBacklinksRouteImport } from './routes/_app/p/$projectId/backlinks'
 import { Route as AppPProjectIdBrandLookupRouteImport } from './routes/_app/p/$projectId/brand-lookup'
@@ -247,6 +248,12 @@ const AppPProjectIdIndexRoute = AppPProjectIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppPProjectIdRouteRoute,
 } as any)
+const AppPProjectIdAiAccessAuditRoute =
+  AppPProjectIdAiAccessAuditRouteImport.update({
+    id: '/ai-access-audit',
+    path: '/ai-access-audit',
+    getParentRoute: () => AppPProjectIdRouteRoute,
+  } as any)
 const AppPProjectIdAiVisibilityRoute =
   AppPProjectIdAiVisibilityRouteImport.update({
     id: '/ai-visibility',
@@ -432,6 +439,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AppSettingsIndexRoute
   '/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/s/$token/': typeof STokenIndexRoute
+  '/p/$projectId/ai-access-audit': typeof AppPProjectIdAiAccessAuditRoute
   '/p/$projectId/ai-visibility': typeof AppPProjectIdAiVisibilityRouteWithChildren
   '/p/$projectId/backlinks': typeof AppPProjectIdBacklinksRoute
   '/p/$projectId/brand-lookup': typeof AppPProjectIdBrandLookupRoute
@@ -491,6 +499,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsIndexRoute
   '/onboarding': typeof AuthenticatedOnboardingIndexRoute
   '/s/$token': typeof STokenIndexRoute
+  '/p/$projectId/ai-access-audit': typeof AppPProjectIdAiAccessAuditRoute
   '/p/$projectId/backlinks': typeof AppPProjectIdBacklinksRoute
   '/p/$projectId/brand-lookup': typeof AppPProjectIdBrandLookupRoute
   '/p/$projectId/context': typeof AppPProjectIdContextRoute
@@ -553,6 +562,7 @@ export interface FileRoutesById {
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_authenticated/onboarding/': typeof AuthenticatedOnboardingIndexRoute
   '/s/$token/': typeof STokenIndexRoute
+  '/_app/p/$projectId/ai-access-audit': typeof AppPProjectIdAiAccessAuditRoute
   '/_app/p/$projectId/ai-visibility': typeof AppPProjectIdAiVisibilityRouteWithChildren
   '/_app/p/$projectId/backlinks': typeof AppPProjectIdBacklinksRoute
   '/_app/p/$projectId/brand-lookup': typeof AppPProjectIdBrandLookupRoute
@@ -616,6 +626,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/onboarding/'
     | '/s/$token/'
+    | '/p/$projectId/ai-access-audit'
     | '/p/$projectId/ai-visibility'
     | '/p/$projectId/backlinks'
     | '/p/$projectId/brand-lookup'
@@ -675,6 +686,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/onboarding'
     | '/s/$token'
+    | '/p/$projectId/ai-access-audit'
     | '/p/$projectId/backlinks'
     | '/p/$projectId/brand-lookup'
     | '/p/$projectId/context'
@@ -736,6 +748,7 @@ export interface FileRouteTypes {
     | '/_app/settings/'
     | '/_authenticated/onboarding/'
     | '/s/$token/'
+    | '/_app/p/$projectId/ai-access-audit'
     | '/_app/p/$projectId/ai-visibility'
     | '/_app/p/$projectId/backlinks'
     | '/_app/p/$projectId/brand-lookup'
@@ -1034,6 +1047,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPProjectIdIndexRouteImport
       parentRoute: typeof AppPProjectIdRouteRoute
     }
+    '/_app/p/$projectId/ai-access-audit': {
+      id: '/_app/p/$projectId/ai-access-audit'
+      path: '/ai-access-audit'
+      fullPath: '/p/$projectId/ai-access-audit'
+      preLoaderRoute: typeof AppPProjectIdAiAccessAuditRouteImport
+      parentRoute: typeof AppPProjectIdRouteRoute
+    }
     '/_app/p/$projectId/ai-visibility': {
       id: '/_app/p/$projectId/ai-visibility'
       path: '/ai-visibility'
@@ -1296,6 +1316,7 @@ const AppPProjectIdSettingsRouteWithChildren =
   )
 
 interface AppPProjectIdRouteRouteChildren {
+  AppPProjectIdAiAccessAuditRoute: typeof AppPProjectIdAiAccessAuditRoute
   AppPProjectIdAiVisibilityRoute: typeof AppPProjectIdAiVisibilityRouteWithChildren
   AppPProjectIdBacklinksRoute: typeof AppPProjectIdBacklinksRoute
   AppPProjectIdBrandLookupRoute: typeof AppPProjectIdBrandLookupRoute
@@ -1317,6 +1338,7 @@ interface AppPProjectIdRouteRouteChildren {
 }
 
 const AppPProjectIdRouteRouteChildren: AppPProjectIdRouteRouteChildren = {
+  AppPProjectIdAiAccessAuditRoute: AppPProjectIdAiAccessAuditRoute,
   AppPProjectIdAiVisibilityRoute: AppPProjectIdAiVisibilityRouteWithChildren,
   AppPProjectIdBacklinksRoute: AppPProjectIdBacklinksRoute,
   AppPProjectIdBrandLookupRoute: AppPProjectIdBrandLookupRoute,

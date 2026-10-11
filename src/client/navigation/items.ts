@@ -1,6 +1,7 @@
 import {
   Bookmark,
   Bot,
+  BotMessageSquare,
   Brain,
   ChartLine,
   ClipboardCheck,
@@ -58,6 +59,11 @@ const projectNavItems = [
     to: "/p/$projectId/audit" as const,
     label: "Site Audit",
     icon: ClipboardCheck,
+  },
+  {
+    to: "/p/$projectId/ai-access-audit" as const,
+    label: "AI Access Audit",
+    icon: BotMessageSquare,
   },
   {
     to: "/p/$projectId/ai-visibility" as const,
@@ -147,6 +153,7 @@ export function getProjectNavGroups(projectId: string) {
         byPath("/p/$projectId/rank-tracking"),
         byPath("/p/$projectId/saved"),
         byPath("/p/$projectId/audit"),
+        byPath("/p/$projectId/ai-access-audit"),
       ],
     },
     {

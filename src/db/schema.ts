@@ -11,6 +11,8 @@ import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
 import * as sqliteAiVisibility from "./ai-visibility.schema";
+import * as sqliteAiAccess from "./ai-access.schema";
+import * as pgAiAccess from "./pg/ai-access.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
 import * as pgReports from "./pg/reports.schema";
@@ -45,7 +47,8 @@ type AppSchema = typeof sqliteApp &
   typeof sqliteGa4 &
   typeof sqliteGsc &
   typeof sqliteTelemetry &
-  typeof sqliteAiVisibility;
+  typeof sqliteAiVisibility &
+  typeof sqliteAiAccess;
 
 const runtimeSchema =
   getDatabaseProvider() === "postgres"
@@ -62,6 +65,7 @@ const runtimeSchema =
         ...pgGsc,
         ...pgTelemetry,
         ...pgAiVisibility,
+        ...pgAiAccess,
       }
     : {
         ...sqliteApp,
@@ -76,6 +80,7 @@ const runtimeSchema =
         ...sqliteGsc,
         ...sqliteTelemetry,
         ...sqliteAiVisibility,
+        ...sqliteAiAccess,
       };
 
 // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- guarded by schema-parity.test.ts
@@ -127,4 +132,5 @@ export const {
   aiObservations,
   aiSources,
   aiMatches,
+  aiAccessAudits,
 } = schema;
