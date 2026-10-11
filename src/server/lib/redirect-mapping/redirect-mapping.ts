@@ -90,7 +90,7 @@ export function mapRedirects({ mode, oldPages, newPages }: RedirectInput) {
     const ranked = targets
       .map((target) => {
         const parts = segments(target.url);
-        const signals =
+        const signals: Record<string, number> =
           mode === "retirement"
             ? {
                 inlinks: overlap(page.inlinks, target.inlinks) * 0.4,
@@ -133,8 +133,10 @@ export function mapRedirects({ mode, oldPages, newPages }: RedirectInput) {
             .filter(([, value]) => value > 0)
             .map(([key]) => key),
         };
-      })
-      .sort((a, b) => b.score - a.score || a.target.localeCompare(b.target));
+      });
+    ranked.sort(
+      (a, b) => b.score - a.score || a.target.localeCompare(b.target),
+    );
     const best = ranked[0];
     return {
       source: page.url,
