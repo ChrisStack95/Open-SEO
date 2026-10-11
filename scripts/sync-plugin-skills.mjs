@@ -16,6 +16,7 @@ const skills = [
   "ai-visibility-audit",
   "competitive-landscape",
   "competitor-analysis",
+  "dead-page-checker",
   "keyword-clustering",
   "keyword-research",
   "link-prospecting",
