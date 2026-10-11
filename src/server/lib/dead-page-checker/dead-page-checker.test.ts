@@ -8,6 +8,10 @@ describe("dead page checker", () => {
     );
     expect(parsed.productCount).toBe(2);
     expect(parsed.wordCount).toBe(2);
+    expect(
+      parseDeadPageHtml("<main>Direct text <b>and nested text</b></main>")
+        .wordCount,
+    ).toBe(5);
   });
   it("flags editorial collections for review instead of safe deletion", () => {
     const [row] = analyseDeadPages([

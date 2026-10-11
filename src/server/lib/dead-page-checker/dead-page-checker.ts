@@ -17,9 +17,9 @@ export function parseDeadPageHtml(html: string) {
   const main = $("main")
     .first()
     .find("*")
+    .addBack()
     .contents()
-    .filter((_, node) => node.type === "text")
-    .map((_, node) => $(node).text())
+    .map((_, node) => ("data" in node ? node.data : ""))
     .get()
     .join(" ")
     .replace(/\s+/g, " ")
@@ -52,7 +52,7 @@ export function analyseDeadPages(pages: DeadPage[]) {
             /(draft|preorder|pre-order|coming-soon|launch|debut|reveal)/.test(
               url,
             ) && "pre-launch",
-            /(?:\bx-|\-x-|\bcollab|collaboration)/.test(url) && "collaboration",
+            /(?:\bx-|-x-|\bcollab|collaboration)/.test(url) && "collaboration",
             /(?:\/test\b|\/staging|\/sandbox|\/dev-)/.test(url) &&
               "test-or-staging",
           ].filter((reason): reason is string => typeof reason === "string")

@@ -1,4 +1,6 @@
-export type LlmsPage = {
+import { sort } from "remeda";
+
+type LlmsPage = {
   url: string;
   title?: string;
   description?: string;
@@ -37,7 +39,7 @@ function label(page: LlmsPage): string {
     pathOf(page.url).split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ||
     page.url
   )
-    .replace(/[\[\]\r\n]/g, " ")
+    .replace(/[[\]\r\n]/g, " ")
     .slice(0, 60);
 }
 
@@ -69,7 +71,7 @@ export function generateLlmsTxt({ siteName, summary, pages }: Input) {
   }
   const site = siteName.replace(/[\r\n]/g, " ").trim();
   const header = `# ${site}\n\n> ${summary?.trim() || `Official website content for ${site}`}\n`;
-  const ordered = [...sections].sort(([a], [b]) =>
+  const ordered = sort([...sections], ([a], [b]) =>
     a === "Optional"
       ? 1
       : b === "Optional"
@@ -83,8 +85,7 @@ export function generateLlmsTxt({ siteName, summary, pages }: Input) {
   const index = ordered
     .map(
       ([section, entries]) =>
-        `## ${section}\n${entries
-          .sort((a, b) => importance(b) - importance(a))
+        `## ${section}\n${sort(entries, (a, b) => importance(b) - importance(a))
           .map(
             (page) =>
               `- [${label(page)}](${page.url}): ${(page.description?.trim() || label(page)).replace(/[\r\n]/g, " ").slice(0, 120)}`,

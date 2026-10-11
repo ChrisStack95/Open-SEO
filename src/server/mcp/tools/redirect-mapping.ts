@@ -70,13 +70,15 @@ export const redirectMappingTool = {
     outputSchema: z
       .object({
         results: z.array(
-          z.object({
-            source: z.string(),
-            target: z.string().nullable(),
-            score: z.number(),
-            tier: z.enum(["high", "review", "no_match"]),
-            methods: z.array(z.string()),
-          }),
+          z
+            .object({
+              source: z.string(),
+              target: z.string().nullable(),
+              score: z.number(),
+              tier: z.enum(["high", "review", "no_match"]),
+              methods: z.array(z.string()),
+            })
+            .passthrough(),
         ),
         ...optionalMetaOutputSchema,
       })

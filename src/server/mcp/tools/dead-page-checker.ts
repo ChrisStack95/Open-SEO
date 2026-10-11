@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  analyseDeadPages,
-  parseDeadPageHtml,
-  type DeadPage,
-} from "@/server/lib/dead-page-checker/dead-page-checker";
+import type { DeadPage } from "@/server/lib/dead-page-checker/dead-page-checker";
 import {
   normalizeAndValidateStartUrl,
   resolveStartUrlRedirects,
@@ -93,6 +89,8 @@ async function fetchPage(page: Args["pages"][number]): Promise<DeadPage> {
         error: "Redirect changed after validation; retry from the new URL",
       };
     const html = await readLimited(response);
+    const { parseDeadPageHtml } =
+      await import("@/server/lib/dead-page-checker/dead-page-checker");
     return { ...base, status: response.status, ...parseDeadPageHtml(html) };
   } catch (error) {
     return {
@@ -151,6 +149,8 @@ export const checkDeadPagesTool = {
         })),
       );
     }
+    const { analyseDeadPages } =
+      await import("@/server/lib/dead-page-checker/dead-page-checker");
     const results = analyseDeadPages(pages);
     return mcpResponse({
       text: JSON.stringify(results),
