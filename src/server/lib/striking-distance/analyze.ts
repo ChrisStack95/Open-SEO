@@ -72,31 +72,99 @@ const navigational =
 const navigationalUrl =
   /\/(?:login|sign-?in|sign-?up|register|careers|jobs|contact|about|sitemap|privacy|terms|cookie|faq|help|support)(?:\/|$)/i;
 
+const plainText = (text: string) =>
+  text
+    .replace(/<[^>]*>/g, " ")
+    .replace(/[<>\p{Cc}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 function recommendation(keyword: string, rules: BrandRules) {
-  const plainText = (text: string) =>
-    text.replace(/<[^>]*>/g, " ").replace(/[<>\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
   const forbidden = (rules.forbiddenTerms ?? []).map(plainText).filter(Boolean);
   const containsForbidden = (text: string) =>
     forbidden.some((term) => text.toLowerCase().includes(term.toLowerCase()));
   const safeKeyword = plainText(keyword);
-  const target = safeKeyword && !containsForbidden(safeKeyword) ? safeKeyword : "Explore our range";
+  const target =
+    safeKeyword && !containsForbidden(safeKeyword)
+      ? safeKeyword
+      : "Explore our range";
   const suffix = plainText(rules.titleSuffix ?? "");
-  const fullTitle = suffix && !containsForbidden(suffix) ? `${target} – ${suffix}` : target;
+  const fullTitle =
+    suffix && !containsForbidden(suffix) ? `${target} – ${suffix}` : target;
   const titleCandidate = fullTitle.length <= 60 ? fullTitle : target;
-  const title = titleCandidate.length <= 60
-    ? titleCandidate
-    : titleCandidate.slice(0, 61).replace(/\s+\S*$/, "").trim();
-  const vocabulary = (rules.preferredVocabulary ?? []).map(plainText).find(
-    (term) => term && !containsForbidden(term),
-  );
+  const title =
+    titleCandidate.length <= 60
+      ? titleCandidate
+      : titleCandidate
+          .slice(0, 61)
+          .replace(/\s+\S*$/, "")
+          .trim();
+  const vocabulary = (rules.preferredVocabulary ?? [])
+    .map(plainText)
+    .find((term) => term && !containsForbidden(term));
   const brand = plainText(rules.brandName ?? "");
   const meta = `Explore ${target}${vocabulary ? ` and ${vocabulary}` : ""}${brand && !containsForbidden(brand) ? ` from ${brand}` : ""}.`;
   const cap = rules.metaLengthCap ?? 155;
-  const bounded = meta.length <= cap ? meta : meta.slice(0, cap + 1).replace(/\s+\S*$/, "").trim();
+  const bounded =
+    meta.length <= cap
+      ? meta
+      : meta
+          .slice(0, cap + 1)
+          .replace(/\s+\S*$/, "")
+          .trim();
   return {
     recommendedTitle: title,
     recommendedMeta: bounded,
   };
+}
+
+function fallbackTrend(
+  previousRaw: string | undefined,
+  previous: number,
+  delta: number,
+): string {
+  if (!previousRaw) return "unknown";
+  if (previous === 0) return "new";
+  if (delta > 1) return "rising";
+  if (delta < -1) return "declining";
+  return "stable";
+}
+
+function decisionFor(
+  trend: string,
+  position: number,
+  volume: number,
+): "OPTIMISE" | "REPLACE" | "MONITOR" {
+  if (
+    trend === "rising" ||
+    (position <= 10 && volume >= 200) ||
+    (position <= 5 && volume >= 100)
+  )
+    return "OPTIMISE";
+  if (trend === "declining" && volume < 200 && position > 10) return "REPLACE";
+  return "MONITOR";
+}
+
+function isActionable(
+  keyword: string,
+  crawl: { title?: string; meta?: string } | undefined,
+): boolean {
+  if (!crawl?.title || !crawl.meta) return true;
+  const words = keyword
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+  const title = crawl.title.toLowerCase();
+  const meta = crawl.meta.toLowerCase();
+  const phrase = keyword.toLowerCase();
+  if (!words.length) {
+    return !(title.includes(phrase) && meta.includes(phrase));
+  }
+  const titleMatches = words.filter((word) => title.includes(word)).length;
+  const metaMatches = words.filter((word) => meta.includes(word)).length;
+  return (
+    titleMatches / words.length < 0.75 || metaMatches / words.length < 0.75
+  );
 }
 
 export function analyzeStrikingDistance(input: {
@@ -134,7 +202,10 @@ export function analyzeStrikingDistance(input: {
     const position = Number(row.position);
     const volume = Number(row.volume);
     if (!row.keyword.trim() || !url || !Number.isFinite(position)) continue;
-    const group = groups.get(url) ?? { protected: new Set<string>(), keywords: [] };
+    const group = groups.get(url) ?? {
+      protected: new Set<string>(),
+      keywords: [],
+    };
     groups.set(url, group);
     if (position <= 3) {
       group.protected.add(row.keyword.toLowerCase());
@@ -171,20 +242,14 @@ export function analyzeStrikingDistance(input: {
     const trendFromVolume = (() => {
       if (trendValues.length < 6) return null;
       const early = (trendValues[0] + trendValues[1] + trendValues[2]) / 3;
-      const recent = (trendValues.slice(-3).reduce((sum, value) => sum + value, 0)) / 3;
+      const recent =
+        trendValues.slice(-3).reduce((sum, value) => sum + value, 0) / 3;
       if (early === 0) return recent > 0 ? "new" : "stable";
       const change = (recent - early) / early;
       return change > 0.15 ? "rising" : change < -0.15 ? "declining" : "stable";
     })();
-    const trend = trendFromVolume ?? (!row.previous
-      ? "unknown"
-      : previous === 0
-        ? "new"
-        : delta > 1
-          ? "rising"
-          : delta < -1
-            ? "declining"
-            : "stable");
+    const trend =
+      trendFromVolume ?? fallbackTrend(row.previous, previous, delta);
     const difficulty =
       row.difficulty && Number.isFinite(Number(row.difficulty))
         ? Number(row.difficulty)
@@ -197,14 +262,7 @@ export function analyzeStrikingDistance(input: {
           Math.min(Math.max(delta / 5, -1), 1) * 10) *
           (group.protected.has(row.keyword.toLowerCase()) ? 1 : 10),
       ) / 10;
-    const decision =
-      trend === "rising" ||
-      (position <= 10 && volume >= 200) ||
-      (position <= 5 && volume >= 100)
-        ? "OPTIMISE"
-        : trend === "declining" && volume < 200 && position > 10
-          ? "REPLACE"
-          : "MONITOR";
+    const decision = decisionFor(trend, position, volume);
     group.keywords.push({
       keyword: row.keyword,
       position,
@@ -218,26 +276,9 @@ export function analyzeStrikingDistance(input: {
     [...groups.entries()].flatMap(([url, group]) => {
       const crawl = crawls.get(url);
       const keywords = sort(group.keywords, (a, b) => b.score - a.score);
-      const actionable = keywords.filter((keyword) => {
-        if (!crawl?.title || !crawl.meta) return true;
-        const words = keyword.keyword
-          .toLowerCase()
-          .split(/\s+/)
-          .filter((word) => word.length > 3);
-        const title = crawl.title.toLowerCase();
-        const meta = crawl.meta.toLowerCase();
-        const phrase = keyword.keyword.toLowerCase();
-        if (!words.length) {
-          return !(title.includes(phrase) && meta.includes(phrase));
-        }
-        const titleMatches = words.filter((word) => title.includes(word))
-          .length;
-        const metaMatches = words.filter((word) => meta.includes(word)).length;
-        return (
-          titleMatches / words.length < 0.75 ||
-          metaMatches / words.length < 0.75
-        );
-      });
+      const actionable = keywords.filter((keyword) =>
+        isActionable(keyword.keyword, crawl),
+      );
       const primary = actionable[0];
       if (!primary) return [];
       return [
