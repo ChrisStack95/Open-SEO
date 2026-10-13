@@ -26,6 +26,7 @@ import {
   type BrandLookupInput,
   type BrandLookupResult,
 } from "@/types/schemas/ai-search";
+import { resolveMarket } from "@/shared/keyword-locations";
 import { detectTarget } from "@/shared/targetDetection";
 import {
   parseResearchTarget,
@@ -49,10 +50,24 @@ const PLATFORMS: LlmPlatform[] = ["chat_gpt", "google"];
 const MENTIONS_PER_PLATFORM = 100;
 const TOP_SOURCES_PER_PLATFORM = 10;
 
+/** Brand lookup input with the market resolved — never undefined downstream. */
+type ResolvedMarketInput = BrandLookupInput & {
+  locationCode: number;
+  languageCode: string;
+};
+
 export async function getBrandLookup(
-  input: BrandLookupInput,
+  rawInput: BrandLookupInput & {
+    projectMarket: { locationCode: number; languageCode: string };
+  },
   billingCustomer: BillingCustomerContext,
 ): Promise<BrandLookupResult> {
+  // Resolve the market once, up front: an omitted country falls back to the
+  // project's, and overriding only the country snaps the language with it.
+  const input: ResolvedMarketInput = {
+    ...rawInput,
+    ...resolveMarket(rawInput, rawInput.projectMarket),
+  };
   const detected = detectTarget(input.query);
   const researchTarget = resolveResearchTarget(input, detected);
   // The LLM mentions API only scopes a domain target by subdomain inclusion;
@@ -215,7 +230,7 @@ async function settle<T>(
 }
 
 type PlatformFetchInput = Pick<
-  BrandLookupInput,
+  ResolvedMarketInput,
   "locationCode" | "languageCode"
 >;
 

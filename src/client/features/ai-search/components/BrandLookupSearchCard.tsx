@@ -1,6 +1,8 @@
 import type { FormEvent } from "react";
 import { isHostedClientAuthMode } from "@/lib/auth-mode";
 import { applyBillingMarkupUsd } from "@/shared/billing";
+import { LocationSelect } from "@/client/components/LocationSelect";
+import { LABS_LOCATION_OPTIONS } from "@/client/features/keywords/locations";
 import { ResearchScopeSelect } from "@/client/components/ResearchScopeSelect";
 import { SearchCard, SearchInput } from "@/client/components/SearchCard";
 import { Field, FieldDescription } from "@/client/components/ui/field";
@@ -14,6 +16,8 @@ type Props = {
   scope: ResearchScope;
   onScopeChange: (next: ResearchScope) => void;
   scopeDisabledReason: string | undefined;
+  locationCode: number;
+  onLocationChange: (locationCode: number) => void;
   competitors: string;
   onCompetitorsChange: (next: string) => void;
   onSubmit: (event: FormEvent) => void;
@@ -52,6 +56,8 @@ export function BrandLookupSearchCard({
   scope,
   onScopeChange,
   scopeDisabledReason,
+  locationCode,
+  onLocationChange,
   competitors,
   onCompetitorsChange,
   onSubmit,
@@ -88,6 +94,10 @@ export function BrandLookupSearchCard({
               Voice.
             </FieldDescription>
           </Field>
+          <p className="text-xs text-muted-foreground">
+            The country applies to Google AI Overview. ChatGPT mention data is
+            US/English only, whichever country you pick.
+          </p>
           <p className="text-xs text-muted-foreground tabular-nums">
             Est.{" "}
             <span className="font-medium text-foreground">
@@ -122,6 +132,13 @@ export function BrandLookupSearchCard({
         className="w-full lg:w-40"
         onChange={onScopeChange}
         disabledReason={scopeDisabledReason}
+      />
+
+      <LocationSelect
+        value={locationCode}
+        options={LABS_LOCATION_OPTIONS}
+        className="w-full lg:w-44 lg:shrink-0"
+        onChange={onLocationChange}
       />
     </SearchCard>
   );

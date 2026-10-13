@@ -48,8 +48,9 @@ export const brandLookupInputSchema = z.object({
   // have no URL to scope. Omitted = derive from the query (root → domain, path
   // → subfolder).
   scope: researchScopeSchema.optional(),
-  locationCode: z.number().int().positive().default(2840),
-  languageCode: z.string().min(2).max(8).default("en"),
+  // Omitted = the project's market, resolved server-side by resolveMarket.
+  locationCode: z.number().int().positive().optional(),
+  languageCode: z.string().min(2).max(8).optional(),
 });
 
 export type BrandLookupInput = z.infer<typeof brandLookupInputSchema>;
@@ -257,6 +258,8 @@ export type PromptExplorerResult = z.infer<typeof promptExplorerResultSchema>;
 export const brandLookupSearchSchema = z.object({
   q: z.string().optional(),
   scope: researchScopeSchema.optional().catch(undefined),
+  // Country override for this lookup. Omitted = the project's market.
+  loc: z.coerce.number().int().positive().optional().catch(undefined),
   c: z
     .union([z.string(), z.array(z.string())])
     .optional()

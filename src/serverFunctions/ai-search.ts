@@ -13,7 +13,10 @@ export const lookupBrand = createServerFn({ method: "POST" })
   .validator(brandLookupInputSchema)
   .handler(async ({ data, context }) => {
     await assertPaidAiSearchPlan(context.organizationId, "Brand Lookup");
-    return getBrandLookup({ ...data, projectId: context.projectId }, context);
+    return getBrandLookup(
+      { ...data, projectId: context.projectId, projectMarket: context.project },
+      context,
+    );
   });
 
 export const explorePrompt = createServerFn({ method: "POST" })

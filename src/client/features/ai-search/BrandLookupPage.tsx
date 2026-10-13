@@ -16,6 +16,7 @@ import {
   BRAND_LOOKUP_MAX_INPUT_LENGTH,
   parseCompetitorList,
 } from "@/types/schemas/ai-search";
+import { DEFAULT_LOCATION_CODE } from "@/client/features/keywords/locations";
 import { detectTarget } from "@/shared/targetDetection";
 import {
   parseResearchTarget,
@@ -29,6 +30,9 @@ type Props = {
   initialQuery: string;
   initialCompetitors: string[];
   initialScope: ResearchScope | undefined;
+  /** Resolved country for this lookup; undefined until the market is known. */
+  locationCode: number | undefined;
+  onLocationChange: (locationCode: number) => void;
   onSearchChange: (
     nextQuery: string,
     nextCompetitors: string[],
@@ -61,6 +65,8 @@ export function BrandLookupPage({
   initialQuery,
   initialCompetitors,
   initialScope,
+  locationCode,
+  onLocationChange,
   onSearchChange,
 }: Props) {
   const planStatus = useHostedPlanGate();
@@ -108,6 +114,7 @@ export function BrandLookupPage({
       trimmedInitialQuery,
       competitorKey,
       initialScope ?? "",
+      locationCode ?? 0,
     ],
     queryFn: () =>
       lookupBrand({
@@ -116,14 +123,16 @@ export function BrandLookupPage({
           query: trimmedInitialQuery,
           competitors: initialCompetitors,
           scope: initialScope,
-          locationCode: 2840,
-          languageCode: "en",
+          // Language is derived from the country server-side by resolveMarket.
+          locationCode,
         },
       }),
     // Client-side gate is a UX optimization only; the paywall is enforced
     // server-side (lookupBrand → assertPaidPlan) before any DataForSEO spend,
     // so a stale free-plan window here just yields a rejected request, not cost.
-    enabled: hasActiveQuery && planStatus === "paid",
+    // Also wait for the resolved market: firing with a fallback country would
+    // spend a paid lookup that the project's own market immediately replaces.
+    enabled: hasActiveQuery && planStatus === "paid" && locationCode != null,
     staleTime: 5 * 60 * 1000,
     retry: false,
   });
@@ -226,6 +235,8 @@ export function BrandLookupPage({
           scope={selectedScope}
           onScopeChange={setScopeChoice}
           scopeDisabledReason={scopeDisabledReason}
+          locationCode={locationCode ?? DEFAULT_LOCATION_CODE}
+          onLocationChange={onLocationChange}
           competitors={competitorsInput}
           onCompetitorsChange={(next) => {
             setCompetitorsInput(next);

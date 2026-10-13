@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { BrandLookupPage } from "@/client/features/ai-search/BrandLookupPage";
+import { useProjectMarket } from "@/client/features/projects/useProjectMarket";
 import { brandLookupSearchSchema } from "@/types/schemas/ai-search";
 
 export const Route = createFileRoute("/_app/p/$projectId/brand-lookup")({
@@ -13,7 +14,12 @@ function BrandLookupRoute() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate({ from: Route.fullPath });
   // `c` is already an opaque competitor string array via the schema transform.
-  const { q = "", c = [], scope } = Route.useSearch();
+  const { q = "", c = [], scope, loc } = Route.useSearch();
+  const projectMarket = useProjectMarket(projectId);
+  // The URL override wins; otherwise the project's market. Undefined until the
+  // projects query resolves, which gates the lookup so no paid call goes out
+  // against a country the user never chose.
+  const locationCode = loc ?? projectMarket?.locationCode;
 
   return (
     <BrandLookupPage
@@ -21,6 +27,21 @@ function BrandLookupRoute() {
       initialQuery={q}
       initialCompetitors={c}
       initialScope={scope}
+      locationCode={locationCode}
+      onLocationChange={(nextLocationCode) => {
+        void navigate({
+          search: (prev) => ({
+            ...prev,
+            // Drop the param when it matches the project's own market, so the
+            // common case keeps a clean URL.
+            loc:
+              nextLocationCode === projectMarket?.locationCode
+                ? undefined
+                : nextLocationCode,
+          }),
+          replace: true,
+        });
+      }}
       onSearchChange={(nextQuery, nextCompetitors, nextScope) => {
         void navigate({
           search: (prev) => ({

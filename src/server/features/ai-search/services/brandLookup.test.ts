@@ -72,6 +72,9 @@ const cachedResult = shapeResult({
   userLanguageCode: "en",
 });
 
+/** Project market for the cases that do not exercise market resolution. */
+const US_MARKET = { locationCode: 2840, languageCode: "en" };
+
 describe("getBrandLookup", () => {
   beforeEach(() => {
     cacheMock.getCached.mockResolvedValue(null);
@@ -102,8 +105,7 @@ describe("getBrandLookup", () => {
       projectId: "project_123",
       query: "acme.com",
       competitors: [],
-      locationCode: 2840,
-      languageCode: "en",
+      projectMarket: US_MARKET,
     };
     dataforseoClientMock.aiSearch.topPages.mockRejectedValueOnce(
       new Error("top pages failed"),
@@ -131,8 +133,7 @@ describe("getBrandLookup", () => {
         projectId: "project_123",
         query: "nike",
         competitors: ["ADIDAS"],
-        locationCode: 2840,
-        languageCode: "en",
+        projectMarket: US_MARKET,
       },
       billingCustomer,
     );
@@ -156,8 +157,7 @@ describe("getBrandLookup", () => {
         projectId: "project_123",
         query: "https://acme.com/blog",
         competitors: [],
-        locationCode: 2840,
-        languageCode: "en",
+        projectMarket: US_MARKET,
       },
       billingCustomer,
     );
@@ -177,6 +177,52 @@ describe("getBrandLookup", () => {
     );
     expect(result.resolvedTarget).toBe("acme.com/blog");
     expect(result.aggregatesAreDomainLevel).toBe(true);
+  });
+
+  it("falls back to the project's market when the lookup names no country", async () => {
+    await getBrandLookup(
+      {
+        projectId: "project_123",
+        query: "acme",
+        competitors: [],
+        projectMarket: { locationCode: 2276, languageCode: "de" },
+      },
+      billingCustomer,
+    );
+
+    // Google AI Overview follows the project, so the German pair must appear
+    // on a call; ChatGPT stays pinned to US/en because its mentions DB holds
+    // no other market.
+    expect(
+      dataforseoClientMock.aiSearch.aggregatedMetrics,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ locationCode: 2276, languageCode: "de" }),
+    );
+    expect(
+      dataforseoClientMock.aiSearch.aggregatedMetrics,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ locationCode: 2840, languageCode: "en" }),
+    );
+  });
+
+  it("snaps the language to an explicitly chosen country", async () => {
+    await getBrandLookup(
+      {
+        projectId: "project_123",
+        query: "acme",
+        competitors: [],
+        // France over a German project: the project's language must not ride
+        // along, or we would ask DataForSEO for German results in France.
+        locationCode: 2250,
+        projectMarket: { locationCode: 2276, languageCode: "de" },
+      },
+      billingCustomer,
+    );
+
+    expect(cacheMock.buildCacheKey).toHaveBeenCalledWith(
+      "ai-search:brand-lookup",
+      expect.objectContaining({ locationCode: 2250, languageCode: "fr" }),
+    );
   });
 });
 
