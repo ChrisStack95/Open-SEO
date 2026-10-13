@@ -73,7 +73,11 @@ async function userHasGrant(userId: string): Promise<boolean> {
 
 async function listGrantsForUser(userId: string) {
   return db
-    .select({ id: account.id, accountId: account.accountId })
+    .select({
+      id: account.id,
+      accountId: account.accountId,
+      scope: account.scope,
+    })
     .from(account)
     .where(
       and(
@@ -81,6 +85,17 @@ async function listGrantsForUser(userId: string) {
         eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
       ),
     );
+}
+
+const SEARCH_CONSOLE_SCOPE =
+  "https://www.googleapis.com/auth/webmasters.readonly";
+
+/** Google lets the user untick Search Console on the consent screen, which
+ *  leaves a grant that can sign in but not read any property. Reconnecting
+ *  with the box ticked fixes it. Grants saved without a scope list are left
+ *  to the API call to judge. */
+function lacksSearchConsoleScope(scope: string | null): boolean {
+  return scope !== null && !scope.split(",").includes(SEARCH_CONSOLE_SCOPE);
 }
 
 /** Expected ways a stored grant fails to reach Search Console: no token could be
@@ -94,9 +109,10 @@ export function isExpectedGrantFailure(error: unknown): boolean {
   );
 }
 
-/** Only a dead token is fixed by reconnecting. A 403 means Google refused the
- *  call for a reason the grant can't fix (API disabled in the Cloud project,
- *  missing scope, no access), so it is reported instead of shown as expired. */
+/** A dead token is fixed by reconnecting. A 403 on a grant that has the
+ *  Search Console scope is not (e.g. the API is disabled in the Cloud
+ *  project), so it is reported with Google's reason instead of shown as
+ *  expired. A missing scope is caught before the call. */
 function requiresReconnect(error: unknown): boolean {
   return (
     error instanceof GscTokenError ||
@@ -126,6 +142,16 @@ async function listSitesForUserWithGrantStatus(
   const grants = await listGrantsForUser(userId);
   const accounts = await Promise.all(
     grants.map(async (grant) => {
+      if (lacksSearchConsoleScope(grant.scope)) {
+        return {
+          accountId: grant.accountId,
+          email: null,
+          requiresReconnect: true,
+          propertiesUnavailable: false,
+          unavailableReason: null,
+          sites: [],
+        };
+      }
       const client = createGscClient({
         userId,
         gscAccountId: grant.accountId,

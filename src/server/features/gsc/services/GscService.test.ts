@@ -3,7 +3,9 @@ import { GscApiError, GscTokenError } from "@/server/lib/gscErrors";
 import { GscService } from "./GscService";
 
 const mocks = vi.hoisted(() => {
-  const state: { selectRows: Array<{ id: string; accountId: string }> } = {
+  const state: {
+    selectRows: Array<{ id: string; accountId: string; scope?: string }>;
+  } = {
     selectRows: [],
   };
   type GscClientOptions = { userId: string; gscAccountId?: string };
@@ -16,7 +18,7 @@ const mocks = vi.hoisted(() => {
   const dbSelect = vi.fn(() => ({
     from: vi.fn(() => ({
       where: vi.fn(() => {
-        const rows = state.selectRows;
+        const rows = state.selectRows.map((row) => ({ scope: null, ...row }));
         return Object.assign(Promise.resolve(rows), {
           limit: vi.fn().mockResolvedValue(rows),
         });
@@ -185,6 +187,28 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
       );
     },
   );
+
+  it("asks to reconnect a grant that was given without the Search Console scope", async () => {
+    mocks.state.selectRows = [
+      { id: "grant-a", accountId: "sub-a", scope: "openid,email,profile" },
+    ];
+
+    await expect(
+      GscService.listSitesForUserWithGrantStatus("u1"),
+    ).resolves.toEqual({
+      accounts: [
+        {
+          accountId: "sub-a",
+          email: null,
+          requiresReconnect: true,
+          propertiesUnavailable: false,
+          unavailableReason: null,
+          sites: [],
+        },
+      ],
+    });
+    expect(mocks.listSites).not.toHaveBeenCalled();
+  });
 
   it("keeps userinfo failures non-fatal", async () => {
     mocks.state.selectRows = [{ id: "grant-a", accountId: "sub-a" }];
