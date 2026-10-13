@@ -25,6 +25,8 @@ export type GooglePickerAccount = {
   email: string | null;
   requiresReconnect: boolean;
   unavailable?: boolean;
+  /** Google's reason for refusing the request, shown so it can be fixed. */
+  unavailableReason?: string | null;
   properties: Property[];
 };
 type SecondaryAction = {
@@ -235,6 +237,11 @@ export function GooglePropertyPicker({
                           <Button variant="ghost" size="xs" onClick={onRetry}>
                             Try again
                           </Button>
+                          {account.unavailableReason ? (
+                            <p className="w-full break-words text-muted-foreground">
+                              Google said: {account.unavailableReason}
+                            </p>
+                          ) : null}
                         </div>
                       ) : account.properties.length === 0 ? (
                         <p className="px-2 pb-3 text-sm text-muted-foreground">

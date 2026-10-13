@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import { account } from "@/db/schema";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
@@ -42,6 +43,9 @@ type GscSiteListResult = {
     email: string | null;
     requiresReconnect: boolean;
     propertiesUnavailable: boolean;
+    /** Google's own explanation when it refused the request, e.g. the Search
+     *  Console API is disabled in the Cloud project. */
+    unavailableReason: string | null;
     sites: GscSite[];
   }>;
 };
@@ -90,6 +94,32 @@ export function isExpectedGrantFailure(error: unknown): boolean {
   );
 }
 
+/** Only a dead token is fixed by reconnecting. A 403 means Google refused the
+ *  call for a reason the grant can't fix (API disabled in the Cloud project,
+ *  missing scope, no access), so it is reported instead of shown as expired. */
+function requiresReconnect(error: unknown): boolean {
+  return (
+    error instanceof GscTokenError ||
+    (error instanceof GscApiError && error.status === 401)
+  );
+}
+
+const googleErrorBodySchema = z.object({
+  error: z.object({ message: z.string().min(1) }),
+});
+
+function googleRefusalReason(error: unknown): string | null {
+  if (!(error instanceof GscApiError) || error.status !== 403) return null;
+  try {
+    const parsed = googleErrorBodySchema.safeParse(
+      JSON.parse(error.body ?? ""),
+    );
+    return parsed.success ? parsed.data.error.message : null;
+  } catch {
+    return null;
+  }
+}
+
 async function listSitesForUserWithGrantStatus(
   userId: string,
 ): Promise<GscSiteListResult> {
@@ -114,10 +144,12 @@ async function listSitesForUserWithGrantStatus(
           email,
           requiresReconnect: false,
           propertiesUnavailable: false,
+          unavailableReason: null,
           sites,
         };
       } catch (error) {
-        if (!isExpectedGrantFailure(error)) {
+        const reconnect = requiresReconnect(error);
+        if (!reconnect) {
           console.error(
             "Failed to list Search Console sites for account",
             grant.accountId,
@@ -127,8 +159,9 @@ async function listSitesForUserWithGrantStatus(
         return {
           accountId: grant.accountId,
           email: null,
-          requiresReconnect: isExpectedGrantFailure(error),
-          propertiesUnavailable: !isExpectedGrantFailure(error),
+          requiresReconnect: reconnect,
+          propertiesUnavailable: !reconnect,
+          unavailableReason: googleRefusalReason(error),
           sites: [],
         };
       }
