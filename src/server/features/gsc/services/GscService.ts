@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 import { db } from "@/db";
 import { account } from "@/db/schema";
 import { GSC_OAUTH_PROVIDER_ID } from "@/shared/gsc";
@@ -42,6 +43,9 @@ type GscSiteListResult = {
     email: string | null;
     requiresReconnect: boolean;
     propertiesUnavailable: boolean;
+    /** Google's own explanation when it refused the request, e.g. the Search
+     *  Console API is disabled in the Cloud project. */
+    unavailableReason: string | null;
     sites: GscSite[];
   }>;
 };
@@ -69,7 +73,11 @@ async function userHasGrant(userId: string): Promise<boolean> {
 
 async function listGrantsForUser(userId: string) {
   return db
-    .select({ id: account.id, accountId: account.accountId })
+    .select({
+      id: account.id,
+      accountId: account.accountId,
+      scope: account.scope,
+    })
     .from(account)
     .where(
       and(
@@ -77,6 +85,17 @@ async function listGrantsForUser(userId: string) {
         eq(account.providerId, GSC_OAUTH_PROVIDER_ID),
       ),
     );
+}
+
+const SEARCH_CONSOLE_SCOPE =
+  "https://www.googleapis.com/auth/webmasters.readonly";
+
+/** Google lets the user untick Search Console on the consent screen, which
+ *  leaves a grant that can sign in but not read any property. Reconnecting
+ *  with the box ticked fixes it. Grants saved without a scope list are left
+ *  to the API call to judge. */
+function lacksSearchConsoleScope(scope: string | null): boolean {
+  return scope !== null && !scope.split(",").includes(SEARCH_CONSOLE_SCOPE);
 }
 
 /** Expected ways a stored grant fails to reach Search Console: no token could be
@@ -90,12 +109,49 @@ export function isExpectedGrantFailure(error: unknown): boolean {
   );
 }
 
+/** A dead token is fixed by reconnecting. A 403 on a grant that has the
+ *  Search Console scope is not (e.g. the API is disabled in the Cloud
+ *  project), so it is reported with Google's reason instead of shown as
+ *  expired. A missing scope is caught before the call. */
+function requiresReconnect(error: unknown): boolean {
+  return (
+    error instanceof GscTokenError ||
+    (error instanceof GscApiError && error.status === 401)
+  );
+}
+
+const googleErrorBodySchema = z.object({
+  error: z.object({ message: z.string().min(1) }),
+});
+
+function googleRefusalReason(error: unknown): string | null {
+  if (!(error instanceof GscApiError) || error.status !== 403) return null;
+  try {
+    const parsed = googleErrorBodySchema.safeParse(
+      JSON.parse(error.body ?? ""),
+    );
+    return parsed.success ? parsed.data.error.message : null;
+  } catch {
+    return null;
+  }
+}
+
 async function listSitesForUserWithGrantStatus(
   userId: string,
 ): Promise<GscSiteListResult> {
   const grants = await listGrantsForUser(userId);
   const accounts = await Promise.all(
     grants.map(async (grant) => {
+      if (lacksSearchConsoleScope(grant.scope)) {
+        return {
+          accountId: grant.accountId,
+          email: null,
+          requiresReconnect: true,
+          propertiesUnavailable: false,
+          unavailableReason: null,
+          sites: [],
+        };
+      }
       const client = createGscClient({
         userId,
         gscAccountId: grant.accountId,
@@ -114,10 +170,12 @@ async function listSitesForUserWithGrantStatus(
           email,
           requiresReconnect: false,
           propertiesUnavailable: false,
+          unavailableReason: null,
           sites,
         };
       } catch (error) {
-        if (!isExpectedGrantFailure(error)) {
+        const reconnect = requiresReconnect(error);
+        if (!reconnect) {
           console.error(
             "Failed to list Search Console sites for account",
             grant.accountId,
@@ -127,8 +185,9 @@ async function listSitesForUserWithGrantStatus(
         return {
           accountId: grant.accountId,
           email: null,
-          requiresReconnect: isExpectedGrantFailure(error),
-          propertiesUnavailable: !isExpectedGrantFailure(error),
+          requiresReconnect: reconnect,
+          propertiesUnavailable: !reconnect,
+          unavailableReason: googleRefusalReason(error),
           sites: [],
         };
       }

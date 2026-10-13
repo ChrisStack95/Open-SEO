@@ -3,7 +3,9 @@ import { GscApiError, GscTokenError } from "@/server/lib/gscErrors";
 import { GscService } from "./GscService";
 
 const mocks = vi.hoisted(() => {
-  const state: { selectRows: Array<{ id: string; accountId: string }> } = {
+  const state: {
+    selectRows: Array<{ id: string; accountId: string; scope?: string }>;
+  } = {
     selectRows: [],
   };
   type GscClientOptions = { userId: string; gscAccountId?: string };
@@ -16,7 +18,7 @@ const mocks = vi.hoisted(() => {
   const dbSelect = vi.fn(() => ({
     from: vi.fn(() => ({
       where: vi.fn(() => {
-        const rows = state.selectRows;
+        const rows = state.selectRows.map((row) => ({ scope: null, ...row }));
         return Object.assign(Promise.resolve(rows), {
           limit: vi.fn().mockResolvedValue(rows),
         });
@@ -142,7 +144,7 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
 
   it.each([
     ["a revoked token", new GscTokenError("revoked")],
-    ["a 403", new GscApiError(403, "Search Console denied access")],
+    ["a 401", new GscApiError(401, "Search Console rejected the token")],
   ])(
     "marks only the grant that failed with %s for reconnect",
     async (_label, failure) => {
@@ -166,6 +168,7 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
             email: "sub-a@example.com",
             requiresReconnect: false,
             propertiesUnavailable: false,
+            unavailableReason: null,
             sites: [{ siteUrl: "https://x/", permissionLevel: "siteOwner" }],
           },
           {
@@ -173,6 +176,7 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
             email: null,
             requiresReconnect: true,
             propertiesUnavailable: false,
+            unavailableReason: null,
             sites: [],
           },
         ],
@@ -183,6 +187,28 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
       );
     },
   );
+
+  it("asks to reconnect a grant that was given without the Search Console scope", async () => {
+    mocks.state.selectRows = [
+      { id: "grant-a", accountId: "sub-a", scope: "openid,email,profile" },
+    ];
+
+    await expect(
+      GscService.listSitesForUserWithGrantStatus("u1"),
+    ).resolves.toEqual({
+      accounts: [
+        {
+          accountId: "sub-a",
+          email: null,
+          requiresReconnect: true,
+          propertiesUnavailable: false,
+          unavailableReason: null,
+          sites: [],
+        },
+      ],
+    });
+    expect(mocks.listSites).not.toHaveBeenCalled();
+  });
 
   it("keeps userinfo failures non-fatal", async () => {
     mocks.state.selectRows = [{ id: "grant-a", accountId: "sub-a" }];
@@ -200,10 +226,44 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
           email: null,
           requiresReconnect: false,
           propertiesUnavailable: false,
+          unavailableReason: null,
           sites: [{ siteUrl: "https://x/", permissionLevel: "siteOwner" }],
         },
       ],
     });
+  });
+
+  it("reports Google's reason for a 403 instead of asking to reconnect", async () => {
+    mocks.state.selectRows = [{ id: "grant-a", accountId: "sub-a" }];
+    const reason =
+      "Google Search Console API has not been used in project 123 before or it is disabled.";
+    mocks.listSites.mockRejectedValue(
+      new GscApiError(
+        403,
+        "Search Console denied access",
+        JSON.stringify({ error: { code: 403, message: reason } }),
+      ),
+    );
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(
+      GscService.listSitesForUserWithGrantStatus("u1"),
+    ).resolves.toEqual({
+      accounts: [
+        {
+          accountId: "sub-a",
+          email: null,
+          requiresReconnect: false,
+          propertiesUnavailable: true,
+          unavailableReason: reason,
+          sites: [],
+        },
+      ],
+    });
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 
   it("keeps non-auth GSC API errors reportable", async () => {
@@ -231,6 +291,7 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
           email: "sub-a@example.com",
           requiresReconnect: false,
           propertiesUnavailable: false,
+          unavailableReason: null,
           sites: [{ siteUrl: "https://x/", permissionLevel: "siteOwner" }],
         },
         {
@@ -238,6 +299,7 @@ describe("GscService.listSitesForUserWithGrantStatus", () => {
           email: null,
           requiresReconnect: false,
           propertiesUnavailable: true,
+          unavailableReason: null,
           sites: [],
         },
       ],
