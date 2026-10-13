@@ -75,6 +75,30 @@ function defaultComparePeriod(
   return "7d";
 }
 
+function LatestRunErrorAlert({
+  run,
+}: {
+  run?: { status: string; errorMessage: string | null } | null;
+}) {
+  const failed = run?.status === "failed";
+  // Without this, a partial run's unchecked keywords look like they don't rank.
+  const incomplete = run?.status === "completed" && !!run.errorMessage;
+  if (!failed && !incomplete) return null;
+  return (
+    <Alert variant={failed ? "destructive" : "warning"}>
+      <AlertTriangle />
+      <AlertDescription className="text-foreground">
+        <p>
+          <span className="font-medium">
+            {failed ? "Last check failed." : "Last check was incomplete."}
+          </span>{" "}
+          {run.errorMessage}
+        </p>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function RankTrackingDomainDetail({
   config,
   projectId,
@@ -253,17 +277,7 @@ export function RankTrackingDomainDetail({
         </Alert>
       )}
 
-      {latestRun?.status === "failed" && (
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertDescription className="text-foreground">
-            <p>
-              <span className="font-medium">Last check failed.</span>{" "}
-              {latestRun.errorMessage}
-            </p>
-          </AlertDescription>
-        </Alert>
-      )}
+      <LatestRunErrorAlert run={latestRun} />
 
       <FreePlanAlert visible={planStatus === "free"} />
 
