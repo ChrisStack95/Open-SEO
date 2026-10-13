@@ -1,6 +1,6 @@
 # Cloudflare Self-Hosting
 
-Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan.
+Host OpenSEO on Cloudflare for internet-facing self-hosting across multiple devices or with your team. One deploy command provisions everything, including the Cloudflare Access login gate. Works on Cloudflare's free plan, though larger rank checks need Workers Paid (see [Free-plan limits for rank tracking](#free-plan-limits-for-rank-tracking)).
 
 Related guides:
 
@@ -68,6 +68,18 @@ To manage the Access application yourself instead, set `TEAM_DOMAIN` (`https://y
 
 If it doesn't, see Troubleshooting below.
 
+## Free-plan limits for rank tracking
+
+On Cloudflare's free Workers plan, one Workflow invocation can make at most 50 external subrequests. A rank check runs as a Workflow and costs one request per keyword and device, so on the free plan a check covers roughly 40 keywords, or about 20 when tracking both desktop and mobile. A larger check stops at the limit, keeps the rankings it already collected, and shows a warning saying how many keywords were checked.
+
+To check every keyword, upgrade the account to [Workers Paid](https://developers.cloudflare.com/workers/platform/pricing/) ($5/month minimum per account), then redeploy:
+
+```bash
+pnpm deploy:selfhost --yes
+```
+
+Upgrading alone may not be enough: in [#334](https://github.com/every-app/open-seo/issues/334), rank checks kept stopping at the limit until the Workers were redeployed after the upgrade.
+
 ## Updating to the latest OpenSEO version
 
 ```bash
@@ -87,6 +99,7 @@ Everyone allowed through Cloudflare Access works in one shared workspace and see
 - Login fails: re-check `ACCESS_ALLOWED_EMAILS` in `.env.selfhost` and redeploy.
 - `https://<your-worker-hostname>/api/health` reports runtime configuration checks and database status.
 - For server errors, open the Worker `Logs` or run `pnpm exec wrangler tail`. Site audits run in a separate worker: `pnpm exec wrangler tail open-seo-selfhost-audit`.
+- Rank checks stop after a few dozen keywords: see [Free-plan limits for rank tracking](#free-plan-limits-for-rank-tracking).
 
 ## Tearing it down
 

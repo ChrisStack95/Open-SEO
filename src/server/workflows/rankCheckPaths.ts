@@ -20,6 +20,21 @@ const SINGLE_ATTEMPT_STEP_CONFIG = {
   timeout: "2 minutes" as const,
 };
 
+const SUBREQUEST_LIMIT_ERROR =
+  "Cloudflare's per-invocation subrequest limit was reached (the Workers Free plan allows 50), so the check stopped early. Upgrade to Workers Paid and redeploy to check every keyword.";
+
+function isSubrequestLimitError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /too many subrequests/i.test(message);
+}
+
+// Overwrites earlier per-keyword errors, which would hide why the rest is blank.
+async function recordSubrequestLimit(runId: string) {
+  await RankTrackingRepository.updateRun(runId, {
+    errorMessage: SUBREQUEST_LIMIT_ERROR,
+  });
+}
+
 type KeywordEntry = { id: string; keyword: string };
 type RankCheckResultWithDevice = RankCheckResult & {
   device: "desktop" | "mobile";
@@ -79,7 +94,8 @@ function expandToTaskInputs(
  * Check keyword/device pairs against the live endpoint and persist snapshots.
  * The batch is billed with one credit hold and one settle. Per-call failures
  * are logged and skipped; if the hold itself fails, no call runs and every
- * pair fails with that error. Returns the snapshot count written.
+ * pair fails with that error. Returns the snapshot count written, or throws
+ * after persisting if a call hit the platform subrequest limit.
  */
 async function checkBatchLive(
   ctx: CheckContext,
@@ -104,6 +120,7 @@ async function checkBatchLive(
   }
   const results: RankCheckResultWithDevice[] = [];
   let firstError: string | null = null;
+  let limitError: string | null = null;
   settled.forEach((outcome, index) => {
     if (outcome.status === "fulfilled") {
       results.push({ ...outcome.value, device: tasks[index].device });
@@ -113,6 +130,7 @@ async function checkBatchLive(
     const code = reason instanceof AppError ? reason.code : "UNKNOWN";
     const message = reason instanceof Error ? reason.message : String(reason);
     firstError ??= message;
+    if (isSubrequestLimitError(reason)) limitError ??= message;
     // DataForSEO erring on its own side is a provider flake, not our bug: the
     // keyword just misses this run and finalize reports it to the user. Every
     // other rejection (no credits, bad API key) is ours and stays at error.
@@ -122,7 +140,9 @@ async function checkBatchLive(
       `[rank-check] ${ctx.runId} live call failed (${code}) keyword="${task.keyword}" device=${task.device}: ${message}`,
     );
   });
-  if (firstError) {
+  if (limitError) {
+    await recordSubrequestLimit(ctx.runId);
+  } else if (firstError) {
     await RankTrackingRepository.setRunErrorIfEmpty(ctx.runId, firstError);
   }
   if (results.length > 0) {
@@ -130,6 +150,8 @@ async function checkBatchLive(
       mapResultsToSnapshotRows(ctx.runId, results),
     );
   }
+  // Throw instead of returning a flag so cached step results stay a number.
+  if (limitError) throw new Error(limitError);
   return results.length;
 }
 
@@ -200,6 +222,8 @@ interface CollectRoundOutcome {
   stillPending: PostedRankCheckTask[];
   /** Tasks DataForSEO failed — route to the live fallback. */
   failed: PostedRankCheckTask[];
+  /** Optional so results cached before this field existed still replay. */
+  subrequestLimited?: boolean;
 }
 
 /**
@@ -215,6 +239,7 @@ async function collectQueuedRound(
   const stillPending: PostedRankCheckTask[] = [];
   const failed: PostedRankCheckTask[] = [];
   let firstError: string | null = null;
+  let subrequestLimited = false;
 
   for (let i = 0; i < tasks.length; i += TASK_GET_CONCURRENCY) {
     const chunk = tasks.slice(i, i + TASK_GET_CONCURRENCY);
@@ -249,9 +274,16 @@ async function collectQueuedRound(
         completed.push({ ...result.value.result, device: task.device });
       }
     });
+    subrequestLimited = settled.some(
+      (result) =>
+        result.status === "rejected" && isSubrequestLimitError(result.reason),
+    );
+    if (subrequestLimited) break;
   }
 
-  if (firstError) {
+  if (subrequestLimited) {
+    await recordSubrequestLimit(ctx.runId);
+  } else if (firstError) {
     await RankTrackingRepository.setRunErrorIfEmpty(ctx.runId, firstError);
   }
   if (completed.length > 0) {
@@ -267,7 +299,12 @@ async function collectQueuedRound(
     });
   }
 
-  return { collected: completed.length, stillPending, failed };
+  return {
+    collected: completed.length,
+    stillPending,
+    failed,
+    subrequestLimited,
+  };
 }
 
 /** Per-run accounting for the queued path, in keyword/device task units. */
@@ -351,9 +388,12 @@ export async function runQueuedCheck(
   // collect failure (past its retries) leaves that round's tasks pending for
   // the next round — or the live fallback — instead of failing the run; the
   // posted tasks are already paid for.
+  let subrequestLimited = false;
   for (
     let round = 0;
-    round < QUEUED_POLL_INTERVALS.length && pending.length > 0;
+    round < QUEUED_POLL_INTERVALS.length &&
+    pending.length > 0 &&
+    !subrequestLimited;
     round++
   ) {
     await step.sleep(`wait-${round}`, QUEUED_POLL_INTERVALS[round]);
@@ -379,7 +419,11 @@ export async function runQueuedCheck(
     stats.queueCollected += outcome.collected;
     pending = [...outcome.stillPending, ...overflow];
     fallback.push(...outcome.failed);
+    subrequestLimited = outcome.subrequestLimited ?? false;
   }
+
+  // Later rounds and the live fallback would hit the same limit.
+  if (subrequestLimited) return stats;
 
   // Live fallback: queued tasks that never finished, failed, or were rejected
   // at post time. A straggler is double-billed (customer was metered the
@@ -398,12 +442,17 @@ export async function runQueuedCheck(
     const batch = stragglers.slice(i, i + KEYWORDS_PER_BATCH);
     const batchIndex = Math.floor(i / KEYWORDS_PER_BATCH);
 
-    stats.fallbackChecked += await pgStep(
-      step,
-      `fallback-batch-${batchIndex}`,
-      SINGLE_ATTEMPT_STEP_CONFIG,
-      () => checkBatchLive(ctx, batch),
-    );
+    try {
+      stats.fallbackChecked += await pgStep(
+        step,
+        `fallback-batch-${batchIndex}`,
+        SINGLE_ATTEMPT_STEP_CONFIG,
+        () => checkBatchLive(ctx, batch),
+      );
+    } catch (error) {
+      if (!isSubrequestLimitError(error)) throw error;
+      break;
+    }
   }
 
   return stats;
