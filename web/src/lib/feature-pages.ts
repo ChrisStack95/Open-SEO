@@ -6,6 +6,8 @@ export type FeaturePage = {
   navDescription: string;
   title: string;
   description: string;
+  /** Meta description override. Falls back to `description`, which also renders on the page. */
+  seoDescription?: string;
   primaryKeyword: string;
   secondaryKeywords: string[];
   imageAlt: string;
@@ -57,6 +59,8 @@ export const featurePages = {
     title: "Keyword research tool for practical SEO planning",
     description:
       "Find keyword ideas, compare search volume and difficulty, inspect SERP results, and save the opportunities worth building around.",
+    seoDescription:
+      "Find keyword ideas with search volume and difficulty, check the Google results behind each one, and save the ones worth writing. Free to start, then $10/month.",
     primaryKeyword: "keyword research tool",
     secondaryKeywords: [
       "seo keyword research tool",
@@ -173,6 +177,8 @@ export const featurePages = {
     title: "SEO audit tool for finding technical issues fast",
     description:
       "Crawl a site, collect page-level technical signals, and optionally run Lighthouse checks for performance, SEO, accessibility, and best-practice issues.",
+    seoDescription:
+      "Crawl your site and get every technical issue sorted by severity: broken links, blocked pages, missing titles, optional Lighthouse checks. Free up to 50 pages.",
     primaryKeyword: "seo audit tool",
     secondaryKeywords: [
       "seo site audit",
@@ -281,6 +287,8 @@ export const featurePages = {
     title: "Backlink checker for understanding a domain's link profile",
     description:
       "Analyze backlinks, referring domains, and linked pages without separating link research from the rest of your SEO workspace.",
+    seoDescription:
+      "Go past a quick backlink check: page through every link, see anchors, filter out spam and lost links, and export the list for any domain. $10/month.",
     primaryKeyword: "backlink analysis",
     secondaryKeywords: [
       "backlink analysis tool",
@@ -513,6 +521,8 @@ export const featurePages = {
     title: "Rank tracker for monitoring keyword positions",
     description:
       "Track the keywords that matter, optionally compare desktop and mobile results, and keep ranking changes connected to your research workflow.",
+    seoDescription:
+      "Track keyword positions on desktop and mobile, daily, weekly or monthly. 100 keywords checked weekly uses about $1-2 of credits a month, shown before each run.",
     primaryKeyword: "rank tracker",
     secondaryKeywords: [
       "seo rank tracking tool",
@@ -629,6 +639,8 @@ export const featurePages = {
     title: "Saved keywords for turning SEO research into a plan",
     description:
       "Keep useful keyword ideas organized so they can inform content planning, rank tracking decisions, and AI-agent workflows.",
+    seoDescription:
+      "Save keyword ideas with volume and difficulty attached, tag them by page or topic, and reuse the list for content plans, rank tracking and AI agents.",
     primaryKeyword: "saved keywords",
     secondaryKeywords: [
       "seo keyword list",
@@ -701,6 +713,8 @@ export const featurePages = {
     title: "Track your brand in AI answers",
     description:
       "Research prompts, then track brand mentions, cited pages, and competitor appearances in ChatGPT, Gemini, and Google AI Overviews.",
+    seoDescription:
+      "See where ChatGPT, Gemini and Google AI Overviews mention your brand, which pages they cite, and which competitors appear instead. Open source, $10/month.",
     primaryKeyword: "ai visibility tool",
     secondaryKeywords: [
       "brand visibility ai search",
@@ -774,6 +788,8 @@ export const featurePages = {
     title: "AI search prompt explorer for visibility research",
     description:
       "Start with ChatGPT, or add Claude, Gemini, and Perplexity to compare API model answers and available citations.",
+    seoDescription:
+      "Run one prompt through ChatGPT, Claude, Gemini and Perplexity, then compare the answers and any sources each model cites. Answers come from each model's API.",
     primaryKeyword: "ai search visibility",
     secondaryKeywords: [
       "chatgpt search visibility",
