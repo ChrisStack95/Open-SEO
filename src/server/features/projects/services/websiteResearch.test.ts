@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
 const {
   generateText,
@@ -8,7 +9,13 @@ const {
   listCompetitors,
   listKeywords,
 } = vi.hoisted(() => ({
-  generateText: vi.fn(),
+  generateText:
+    vi.fn<
+      (options: {
+        output: { schema: unknown };
+        tools?: ResearchTools;
+      }) => unknown
+    >(),
   readSite: vi.fn(),
   search: vi.fn(),
   listSections: vi.fn(),
@@ -176,6 +183,19 @@ describe("researchWebsite", () => {
     );
 
     expect(result.suggestedKeywords).toEqual(valid.slice(0, 15));
+  });
+
+  it("sends the model no regex pattern, which Anthropic structured output rejects", async () => {
+    listSections.mockResolvedValue([]);
+    listCompetitors.mockResolvedValue([]);
+    listKeywords.mockResolvedValue([]);
+
+    await researchWebsite("https://saved.com", project, customer);
+
+    const schema = generateText.mock.calls[0]?.[0].output.schema;
+    if (!(schema instanceof z.ZodType))
+      throw new Error("Expected a Zod output schema");
+    expect(JSON.stringify(z.toJSONSchema(schema))).not.toContain('"pattern"');
   });
 
   it.each([
