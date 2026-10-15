@@ -16,9 +16,9 @@ import {
   isHostedServerAuthMode,
 } from "@/server/lib/runtime-env";
 import { AppError } from "@/server/lib/errors";
-import { z } from "zod";
 import { normalizeAiSuggestion } from "@/shared/ai-prompt-suggestions";
 import {
+  generatedAiTopicSchema,
   suggestedAiTopicSchema,
   type GenerateAiPromptsInput,
 } from "@/types/schemas/aiPromptSuggestions";
@@ -70,7 +70,7 @@ export async function generateAiPrompts(
       "You need usage credits to generate prompts.",
     );
   const outputSchema = topicName
-    ? suggestedAiTopicSchema.extend({ name: z.string().trim().min(1).max(120) })
+    ? generatedAiTopicSchema
     : suggestedAiTopicSchema;
   const result = await generateText({
     model: buildChatAgentModel(
@@ -78,7 +78,7 @@ export async function generateAiPrompts(
       await getOptionalEnvValue("OPENROUTER_MODEL"),
       "low",
     ),
-    output: Output.object({ schema: outputSchema }),
+    output: Output.object({ schema: generatedAiTopicSchema }),
     maxOutputTokens: 2000,
     abortSignal: AbortSignal.timeout(60_000),
     system:

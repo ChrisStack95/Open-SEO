@@ -21,6 +21,7 @@ import {
   WEBSITE_UNREADABLE_MESSAGE,
   websiteResearchSchema,
 } from "@/types/schemas/projectWebsite";
+import { generatedAiTopicSchema } from "@/types/schemas/aiPromptSuggestions";
 import { normalizeAiSuggestion } from "@/shared/ai-prompt-suggestions";
 import { ProjectContextRepository } from "@/server/features/project-context/repositories/ProjectContextRepository";
 import { AiVisibilityRepository } from "@/server/features/ai-visibility/repositories/AiVisibilityRepository";
@@ -109,8 +110,7 @@ export async function researchWebsite(
       : {}),
     ...(missingTopics
       ? {
-          suggestedTopics:
-            websiteResearchSchema.shape.suggestedTopics.length(5),
+          suggestedTopics: z.array(generatedAiTopicSchema).length(5),
           // Checked after generation, so a malformed extra keyword is dropped
           // instead of failing a run that is already billed.
           suggestedKeywords: z.array(z.string()),
