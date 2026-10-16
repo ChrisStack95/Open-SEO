@@ -312,6 +312,8 @@ export async function reserveUsageCredits(args: {
   customerId: string;
   callCredits: number[];
   creditFeature?: CreditFeature;
+  /** Queued provider work must keep its hold until the final task cost is known. */
+  ttlMs?: number;
 }): Promise<{ holds: UsageCreditHold[]; refusedCalls: number[] }> {
   const callCredits = args.callCredits.map((credits) => Math.max(1, credits));
   const allCalls = callCredits.map((_, index) => index);
@@ -343,6 +345,7 @@ export async function reserveUsageCredits(args: {
       estimatedCredits: credits,
       callIndexes: fitting,
       properties,
+      ttlMs: args.ttlMs,
     });
   };
 
@@ -476,7 +479,8 @@ export async function finalizeHold(
  * charged exactly what the same calls would cost one by one. Never
  * throws: the customer already has the data, so a finalize that still fails
  * after one retry is logged with everything needed to reconcile it and the
- * hold expires at its TTL.
+ * hold expires at its TTL. Returns whether settlement landed, so durable
+ * queued work can retain reconciliation state when finalization fails.
  */
 export async function settleUsageCredits(args: {
   customer: BillingCustomerContext;
@@ -485,7 +489,7 @@ export async function settleUsageCredits(args: {
   creditFeature?: CreditFeature;
   /** Billed provider calls under this hold; empty when none was charged. */
   costs: Array<{ costUsd: number; path: string[] }>;
-}): Promise<void> {
+}): Promise<boolean> {
   const { customer, hold, creditFeature, costs } = args;
   let actualCredits = 0;
   let totalCostUsd = 0;
@@ -510,9 +514,9 @@ export async function settleUsageCredits(args: {
       actual: actualCredits,
       error,
     });
-    return;
+    return false;
   }
-  if (actualCredits <= 0) return;
+  if (actualCredits <= 0) return true;
 
   const onMonthly = hold.featureId === AUTUMN_SEO_DATA_BALANCE_FEATURE_ID;
   await captureCreditsConsumed(customer, {
@@ -534,6 +538,7 @@ export async function settleUsageCredits(args: {
       actual: actualCredits,
     });
   }
+  return true;
 }
 
 function captureCreditsConsumed(

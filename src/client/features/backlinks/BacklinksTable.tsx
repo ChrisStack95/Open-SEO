@@ -82,6 +82,7 @@ function tintExpandedRow(row: Row<BacklinksDisplayRow>) {
 }
 
 export function BacklinksTable({
+  trackedPairs,
   rows,
   domainRatings,
   sorting,
@@ -89,6 +90,7 @@ export function BacklinksTable({
   expansion,
   ...frame
 }: DataTableFrameProps & {
+  trackedPairs?: ReadonlySet<string>;
   rows: BacklinksRow[];
   domainRatings: DomainRatings | null;
   sorting: SortingState;
@@ -98,14 +100,16 @@ export function BacklinksTable({
 }) {
   const columns = useMemo(
     () =>
-      buildBacklinksColumns(domainRatings, expansion?.toggleDomain).map(
-        (column) => ({
-          ...column,
-          // Tints a domain's expanded links and its status row.
-          meta: { ...column.meta, cellClassName: tintExpandedRow },
-        }),
-      ),
-    [domainRatings, expansion?.toggleDomain],
+      buildBacklinksColumns(
+        domainRatings,
+        expansion?.toggleDomain,
+        trackedPairs,
+      ).map((column) => ({
+        ...column,
+        // Tints a domain's expanded links and its status row.
+        meta: { ...column.meta, cellClassName: tintExpandedRow },
+      })),
+    [domainRatings, expansion?.toggleDomain, trackedPairs],
   );
   const displayRows = useMemo(
     () => buildDisplayRows(rows, expansion),

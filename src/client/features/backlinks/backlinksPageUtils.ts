@@ -114,6 +114,23 @@ export function extractUrlPath(url: string) {
   }
 }
 
+/** Match exact source/target pairs using the tracked inventory's URL rules. */
+export function backlinkPairKey(
+  source: string | null,
+  target: string | null,
+): string | null {
+  if (!source || !target) return null;
+  try {
+    const sourceUrl = new URL(source);
+    const targetUrl = new URL(target);
+    sourceUrl.hash = "";
+    targetUrl.hash = "";
+    return JSON.stringify([sourceUrl.href, targetUrl.href]);
+  } catch {
+    return null;
+  }
+}
+
 const ELLIPSIS = "...";
 
 export function truncateMiddle(value: string, maxLength: number) {

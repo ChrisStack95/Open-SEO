@@ -427,7 +427,7 @@ describe("settleUsageCredits", () => {
     });
     await vi.runAllTimersAsync();
 
-    await expect(result).resolves.toBeUndefined();
+    await expect(result).resolves.toBe(true);
     expect(captureServerEvent).toHaveBeenCalledWith(
       expect.objectContaining({ event: "usage:credits_consume" }),
     );
@@ -446,7 +446,7 @@ describe("settleUsageCredits", () => {
     });
     await vi.runAllTimersAsync();
 
-    await expect(result).resolves.toBeUndefined();
+    await expect(result).resolves.toBe(false);
     expect(finalizeMock).toHaveBeenCalledTimes(2);
     expect(console.error).toHaveBeenCalledWith(
       "[autumn] finalize failed",

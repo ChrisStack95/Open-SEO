@@ -14,6 +14,7 @@ import {
   formatDecimal,
   formatNumber,
   truncateMiddle,
+  backlinkPairKey,
 } from "./backlinksPageUtils";
 import type { DomainRatings } from "./useAhrefsDomainRatings";
 
@@ -50,9 +51,24 @@ function BacklinksSourceLink({
   );
 }
 
-function BacklinkFlags({ row }: { row: BacklinksRow }) {
+function BacklinkFlags({
+  row,
+  trackedPairs,
+}: {
+  row: BacklinksRow;
+  trackedPairs?: ReadonlySet<string>;
+}) {
+  const pairKey = backlinkPairKey(row.urlFrom, row.urlTo);
   return (
     <div className="flex flex-wrap gap-1">
+      {pairKey && trackedPairs?.has(pairKey) && (
+        <Badge
+          variant="info"
+          title="This source and target pair is saved in your tracked backlinks."
+        >
+          Tracked
+        </Badge>
+      )}
       {row.isLost ? <Badge variant="destructive">Lost</Badge> : null}
       {row.isBroken ? <Badge variant="warning">Broken</Badge> : null}
       {row.isDofollow === false ? (
@@ -144,6 +160,7 @@ function linkCell(
 
 function buildBaseColumns(
   onToggleDomain?: (domain: string) => void,
+  trackedPairs?: ReadonlySet<string>,
 ): ColumnDef<BacklinksDisplayRow>[] {
   // Sortable column ids ("rank", "domainRank", "spamScore", "firstSeen") map
   // to server-side sort fields — sorting re-queries DataForSEO across the
@@ -197,11 +214,13 @@ function buildBaseColumns(
       header: () => (
         <HelpLabel
           label="Flags"
-          helpText="Special backlink attributes, such as lost, broken, nofollow, or multiple links from the same source."
+          helpText="Special backlink attributes, such as lost, broken, nofollow, or multiple links from the same source. Tracked marks source and target pairs saved in this project's tracked backlinks."
         />
       ),
       meta: { headerClassName: "min-w-[110px]" },
-      cell: linkCell((row) => <BacklinkFlags row={row} />),
+      cell: linkCell((row) => (
+        <BacklinkFlags row={row} trackedPairs={trackedPairs} />
+      )),
     },
     {
       id: "rank" satisfies BacklinksRowsSortField,
@@ -302,8 +321,9 @@ function buildBaseColumns(
 export function buildBacklinksColumns(
   domainRatings: DomainRatings | null,
   onToggleDomain?: (domain: string) => void,
+  trackedPairs?: ReadonlySet<string>,
 ): ColumnDef<BacklinksDisplayRow>[] {
-  const baseColumns = buildBaseColumns(onToggleDomain);
+  const baseColumns = buildBaseColumns(onToggleDomain, trackedPairs);
   if (!domainRatings) return baseColumns;
 
   const ratings = domainRatings;

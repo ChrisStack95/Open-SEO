@@ -16,6 +16,8 @@ import * as sqliteBilling from "./billing.schema";
 import * as sqliteGa4 from "./ga4.schema";
 import * as sqliteGsc from "./gsc.schema";
 import * as sqliteTelemetry from "./telemetry.schema";
+import * as sqliteTrackedBacklinks from "./tracked-backlinks.schema";
+import * as pgTrackedBacklinks from "./pg/tracked-backlinks.schema";
 import * as sqliteAiVisibility from "./ai-visibility.schema";
 import * as pgApp from "./pg/app.schema";
 import * as pgProjectContext from "./pg/project-context.schema";
@@ -162,6 +164,7 @@ const sqliteAppTables = tablesFrom(
   sqliteGsc,
   sqliteTelemetry,
   sqliteAiVisibility,
+  sqliteTrackedBacklinks,
 );
 const pgAppTables = tablesFrom(
   pgApp,
@@ -175,6 +178,7 @@ const pgAppTables = tablesFrom(
   pgGsc,
   pgTelemetry,
   pgAiVisibility,
+  pgTrackedBacklinks,
 );
 const sqliteAuthTables = tablesFrom(sqliteAuth);
 const pgAuthTables = tablesFrom(pgAuth);

@@ -241,6 +241,11 @@ export default {
     }
     // Scope a per-request Postgres client for the cron run (no-op in D1 mode).
     const checks = await Promise.allSettled([
+      withPgClient(async () => {
+        const { runScheduledTrackedBacklinks } =
+          await import("@/server/features/tracked-backlinks/services/scheduledTrackedBacklinks");
+        await runScheduledTrackedBacklinks();
+      }),
       SCHEDULED_RANK_CHECKS_PAUSED && isHostedAuthMode(env.AUTH_MODE)
         ? Promise.resolve()
         : withPgClient(() => runScheduledRankChecks(env)),

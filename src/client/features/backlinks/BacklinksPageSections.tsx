@@ -1,4 +1,6 @@
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getTrackedBacklinkPairs } from "@/serverFunctions/trackedBacklinks";
 import { List, Rows3 } from "lucide-react";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { BacklinksFilterPanel } from "./BacklinksFilterPanel";
@@ -10,7 +12,7 @@ import type {
   BacklinksSearchState,
   BacklinksTabRows,
 } from "./backlinksPageTypes";
-import { TAB_DESCRIPTIONS } from "./backlinksPageUtils";
+import { TAB_DESCRIPTIONS, backlinkPairKey } from "./backlinksPageUtils";
 import {
   BacklinksActionsMenu,
   BacklinksBestLinksMenu,
@@ -98,6 +100,21 @@ export function BacklinksResultsCard({
   onTabChange: (tab: BacklinksSearchState["tab"]) => void;
   onViewChange: (view: "all" | undefined) => void;
 }) {
+  const tracked = useQuery({
+    queryKey: ["trackedBacklinkPairs", projectId],
+    queryFn: () => getTrackedBacklinkPairs({ data: { projectId } }),
+    enabled: activeTab === "backlinks",
+    staleTime: 60000,
+  });
+  const trackedPairs = useMemo(
+    () =>
+      new Set(
+        (tracked.data ?? [])
+          .map((link) => backlinkPairKey(link.sourceUrl, link.targetUrl))
+          .filter((key): key is string => key !== null),
+      ),
+    [tracked.data],
+  );
   const {
     ratings: domainRatings,
     isLoading: isLoadingRatings,
@@ -256,6 +273,7 @@ export function BacklinksResultsCard({
           current filters. */}
       {activeTab === "backlinks" ? (
         <BacklinksTable
+          trackedPairs={trackedPairs}
           rows={showTable ? tabRows.backlinks : []}
           domainRatings={domainRatings}
           sorting={sorting}
