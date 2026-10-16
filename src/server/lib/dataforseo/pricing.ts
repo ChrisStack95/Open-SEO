@@ -36,6 +36,7 @@ import {
   postRankCheckTasks,
   SERP_ANALYSIS_DEPTH,
 } from "@/server/lib/dataforseo/serp";
+import { fetchBacklinkVerificationPrice } from "@/server/lib/dataforseo/on-page-billing";
 import { fetchLighthouseResult } from "@/server/lib/dataforseo/lighthouse";
 import {
   fetchLlmAggregatedMetrics,
@@ -186,6 +187,15 @@ function daysInclusive(from: string, to: string) {
 
 /** One raw-USD upper-bound estimator per entry in createDataforseoClient. */
 export const dataforseoPricing = {
+  // Queued OnPage crawls bill as pages are crawled, not at task_post. The
+  // durable check service holds this verified account price until id_list
+  // reports the completed task cost; the immediate client meter is unsafe.
+  onPage: {
+    backlinkVerificationTask: (input: {
+      sourceUrl: string;
+      signal?: AbortSignal;
+    }) => fetchBacklinkVerificationPrice({ signal: input.signal }),
+  },
   business: {
     businessListings: priced(
       fetchBusinessListingsSearch,

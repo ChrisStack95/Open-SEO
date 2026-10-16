@@ -42,6 +42,8 @@
     "test:watch": "vitest",
     "test:ci": "vitest run --reporter=dot",
     "test:e2e": "playwright test -c tests/playwright.config.ts",
+    "test:e2e:backlinks": "playwright test -c tests/playwright.manual-backlinks.config.ts",
+    "test:integration:backlinks:pg": "vitest run --config tests/vitest.config.ts",
     "test:e2e:free-tools": "playwright test -c tests/playwright.free-tools.config.ts",
     "test:e2e:domain": "playwright test -c tests/playwright.config.ts tests/domain-overview-filters.spec.ts",
     "test:e2e:domain:perf": "playwright test -c tests/playwright.config.ts tests/domain-overview-filters.perf.spec.ts",

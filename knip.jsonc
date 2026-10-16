@@ -40,6 +40,15 @@
   "ignore": ["drizzle/remote-d1.config.ts"],
   // Disable Drizzle plugin - it tries to load drizzle/sqlite.config.ts which imports cloudflare:workers
   "drizzle": false,
+  // Keep the normal unit-test entrypoints when discovering the opt-in PG suite.
+  "vitest": {
+    "config": ["vite.config.ts", "tests/vitest.config.ts"],
+    "entry": [
+      "src/**/*.test.ts",
+      "scripts/**/*.test.ts",
+      "tests/tracked-backlinks.pg-integration.ts",
+    ],
+  },
   "ignoreDependencies": [
     // Tailwindcss used via @tailwindcss/vite plugin
     "tailwindcss",

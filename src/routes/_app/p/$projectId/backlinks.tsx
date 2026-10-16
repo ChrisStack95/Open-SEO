@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { BacklinksPage } from "@/client/features/backlinks/BacklinksPage";
 import {
@@ -7,7 +8,9 @@ import {
 import { defaultScopeForInput } from "@/shared/researchScope";
 
 export const Route = createFileRoute("/_app/p/$projectId/backlinks")({
-  validateSearch: backlinksSearchSchema,
+  validateSearch: backlinksSearchSchema.extend({
+    mode: z.enum(["research", "tracked"]).optional().catch(undefined),
+  }),
   component: BacklinksRoute,
 });
 
@@ -15,6 +18,7 @@ function BacklinksRoute() {
   const { projectId } = Route.useParams();
   const navigate = useNavigate({ from: Route.fullPath });
   const {
+    mode,
     target = "",
     scope: rawScope,
     tab = "backlinks",
@@ -30,6 +34,7 @@ function BacklinksRoute() {
   return (
     <BacklinksPage
       projectId={projectId}
+      mode={mode}
       navigate={navigate}
       searchState={{
         target,

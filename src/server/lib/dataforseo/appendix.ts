@@ -37,10 +37,12 @@ interface DataforseoUserData {
  * function (serp, keywords_data, backlinks, dataforseo_labs, on_page,
  * business_data, …) for the rolling day / minute window.
  */
-export async function fetchUserData(): Promise<DataforseoUserData | undefined> {
+export async function fetchUserData(
+  options: { signal?: AbortSignal } = {},
+): Promise<DataforseoUserData | undefined> {
   const response = await dataforseoGet<
     DataforseoTaskLike & { result?: DataforseoUserData[] }
-  >("/v3/appendix/user_data");
+  >("/v3/appendix/user_data", options);
 
   // Validates top-level + task status; the call is free so there is no billing
   // envelope to build.
