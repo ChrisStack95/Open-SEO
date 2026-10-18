@@ -42,6 +42,7 @@ type GscSiteListResult = {
     email: string | null;
     requiresReconnect: boolean;
     propertiesUnavailable: boolean;
+    apiDisabled: boolean;
     sites: GscSite[];
   }>;
 };
@@ -114,10 +115,15 @@ async function listSitesForUserWithGrantStatus(
           email,
           requiresReconnect: false,
           propertiesUnavailable: false,
+          apiDisabled: false,
           sites,
         };
       } catch (error) {
-        if (!isExpectedGrantFailure(error)) {
+        // A disabled API is a self-host setup fault, not a dead grant:
+        // reconnecting can't fix it, so log it and show the setup message.
+        const apiDisabled = error instanceof GscApiError && error.apiDisabled;
+        const requiresReconnect = isExpectedGrantFailure(error) && !apiDisabled;
+        if (!requiresReconnect) {
           console.error(
             "Failed to list Search Console sites for account",
             grant.accountId,
@@ -127,8 +133,9 @@ async function listSitesForUserWithGrantStatus(
         return {
           accountId: grant.accountId,
           email: null,
-          requiresReconnect: isExpectedGrantFailure(error),
-          propertiesUnavailable: !isExpectedGrantFailure(error),
+          requiresReconnect,
+          propertiesUnavailable: !requiresReconnect,
+          apiDisabled,
           sites: [],
         };
       }
@@ -203,6 +210,11 @@ async function getPerformance(
     throw new GscNotConnectedError(input.projectId);
   }
   const request = buildSearchAnalyticsRequest(input);
+  // The MCP input schema caps tool responses at 1,000; app consumers may
+  // request Google's full page to compare low-click keywords accurately.
+  if (input.rowLimit !== undefined)
+    request.rowLimit = Math.max(1, Math.min(25000, input.rowLimit));
+
   const client = createGscClient({
     userId: connection.connectedByUserId,
     gscAccountId: connection.gscAccountId ?? undefined,

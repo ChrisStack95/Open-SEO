@@ -73,6 +73,9 @@ export const projects = pgTable(
     // Soft delete: archived projects are hidden everywhere but their data
     // (keywords, rank tracking, audits) is preserved.
     archivedAt: timestampColumn("archived_at"),
+    // The Prompt Research keywords from AI visibility setup, one
+    // per line, most important first. Null until setup runs.
+    aiResearchKeywords: text("ai_research_keywords"),
   },
   (table) => [
     // Only the auto-created Default/null-domain project is a singleton. This
@@ -269,6 +272,9 @@ export const rankTrackingKeywords = pgTable(
     keywordDifficulty: integer("keyword_difficulty"),
     cpc: real("cpc"),
     metricsFetchedAt: timestampColumn("metrics_fetched_at"),
+    // Set when a user pins the keyword to the top of the tracker's table.
+    // Pins are shared by everyone in the project.
+    pinnedAt: timestampColumn("pinned_at"),
     createdAt: timestampColumn("created_at").notNull().default(isoNow),
   },
   (table) => [
@@ -385,11 +391,8 @@ export const projectActivationState = pgTable("project_activation_state", {
   updatedAt: timestampColumn("updated_at").notNull().default(isoNow),
 });
 
-// Point-in-time backlink profile summaries for the project's own domain,
-// written by the dashboard's visit-triggered refresh. DataForSEO's summary
-// already carries new/lost counts, so one snapshot renders a full card;
-// rows accumulate into history for future trend views. The domain is stored
-// per row so a later project-domain change doesn't rewrite history.
+// Retained backlink profile history. The dashboard no longer writes snapshots.
+// Each row keeps its original domain when the project website changes.
 export const backlinkSnapshots = pgTable(
   "backlink_snapshots",
   {
@@ -464,3 +467,6 @@ export const crawlerCredentials = pgTable(
     ),
   ],
 );
+
+// Cross-request refresh claims survive Worker instances and prevent duplicate spend.
+export { dataRefreshClaims } from "./dashboard.schema";
