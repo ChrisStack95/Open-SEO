@@ -4,10 +4,14 @@
 declare namespace Cloudflare {
   interface Env {
     R2: R2Bucket;
+    // Browser Run binding for site-audit JavaScript rendering, audit worker
+    // only. Inline import preserves the ambient Env augmentation.
+    // oxlint-disable-next-line typescript-eslint/consistent-type-imports
+    BROWSER?: import("@cloudflare/workers-types").BrowserRun;
+    // Context.dev key: the rendering fallback when Browser Run fails or is
+    // blocked, and the only renderer on Docker.
+    CONTEXT_API_KEY?: string;
     OAUTH_KV: KVNamespace;
-
-    // Durable Object backing the onboarding strategy chat (see wrangler.jsonc).
-    ONBOARDING_CHAT: DurableObjectNamespace;
 
     // Durable Object backing the SAM in-app agent (see wrangler.jsonc).
     SAM_CHAT: DurableObjectNamespace;
@@ -32,6 +36,9 @@ declare namespace Cloudflare {
     POSTHOG_HOST?: string;
     BETTER_AUTH_SECRET?: string;
     BETTER_AUTH_URL?: string;
+    // Encrypts saved Shopify crawler signatures. Kept separate from
+    // BETTER_AUTH_SECRET so the audit worker never holds the auth secret.
+    CRAWLER_ACCESS_SECRET?: string;
     DATABASE_PROVIDER?: "d1" | "postgres";
     HYPERDRIVE?: {
       connectionString: string;
@@ -57,8 +64,21 @@ declare namespace Cloudflare {
 
     // DataForSEO API Basic auth value (base64 of login:password)
     DATAFORSEO_API_KEY: string;
+    AI_VISIBILITY_WORKFLOW: Workflow<
+      (
+        | { runId: string }
+        | { setupProjectId: string; runSeededTracking?: boolean }
+      ) & {
+        customer: {
+          organizationId: string;
+          userId: string;
+          userEmail: string;
+          projectId?: string;
+        };
+      }
+    >;
 
-    // OpenRouter API key for the in-app chat agents (onboarding + SAM).
+    // OpenRouter API key for the SAM in-app chat agent.
     OPENROUTER_API_KEY?: string;
     // Optional OpenRouter model slug override (defaults in openrouter.ts).
     OPENROUTER_MODEL?: string;

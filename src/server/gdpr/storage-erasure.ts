@@ -1,7 +1,7 @@
-import { getAuth } from "@/lib/auth";
-import type { OnboardingChatAgent } from "@/server/features/onboarding/OnboardingChatAgent";
+import { getGoogleAccessToken } from "@/server/features/google/googleOAuth";
 import type { SamChatAgent } from "@/server/features/sam/SamChatAgent";
 import { captureServerError } from "@/server/lib/posthog";
+import { deleteProjectAiObjects } from "@/server/features/ai-visibility/services/aiVisibilityStorage";
 import {
   DUB_REFERRED_ORG_KV_PREFIX,
   DUB_REFERRED_USER_KV_PREFIX,
@@ -140,22 +140,18 @@ async function revokeGoogleAccount(
   userId: string,
   account: GdprStorageErasurePayload["googleAccounts"][number],
 ): Promise<GoogleRevocationResult> {
-  let accessToken: string | undefined;
+  let accessToken: string;
   try {
-    const result = await getAuth().api.getAccessToken({
-      body: {
-        userId,
-        providerId: account.providerId,
-        accountId: account.accountId,
-      },
+    accessToken = await getGoogleAccessToken({
+      userId,
+      providerId: account.providerId,
+      accountId: account.accountId,
     });
-    accessToken = result?.accessToken;
   } catch {
-    // If Better Auth cannot mint a token, the locally stored grant is no longer
-    // usable. The Postgres transaction still removes its encrypted token row.
+    // If no token can be minted, the locally stored grant is no longer usable.
+    // The Postgres transaction still removes its encrypted token row.
     return { ...account, status: "token_unavailable" };
   }
-  if (!accessToken) return { ...account, status: "token_unavailable" };
 
   const response = await fetch(GOOGLE_REVOKE_URL, {
     method: "POST",
@@ -183,6 +179,15 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
     env.RANK_CHECK_WORKFLOW,
     payload.activeRankWorkflowIds,
   );
+  const aiWorkflowsTerminated = await terminateWorkflows(
+    env.AI_VISIBILITY_WORKFLOW,
+    [
+      ...payload.activeAiVisibilityWorkflowIds,
+      ...payload.aiVisibilityProjectIds.map(
+        (projectId) => `ai-research-setup-${projectId}`,
+      ),
+    ],
+  );
 
   const googleRevocations: GoogleRevocationResult[] = [];
   for (const account of payload.googleAccounts) {
@@ -196,14 +201,6 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
     env.SAM_CHAT as unknown as DurableObjectNamespace<SamChatAgent>;
   for (const sessionId of payload.samSessionIds) {
     await samChat.get(samChat.idFromName(sessionId)).destroyForErasure();
-  }
-  const onboardingChat =
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the binding is declared as this class in wrangler.jsonc
-    env.ONBOARDING_CHAT as unknown as DurableObjectNamespace<OnboardingChatAgent>;
-  for (const projectId of payload.projectIds) {
-    await onboardingChat
-      .get(onboardingChat.idFromName(projectId))
-      .destroyForErasure();
   }
   for (const auditId of payload.auditIds) {
     // The scratchpad DO lives in the open-seo-audit worker; destroy is the
@@ -231,16 +228,20 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
     env.R2,
     payload.organizationIds,
   );
+  let aiVisibilityObjects = 0;
+  for (const projectId of payload.aiVisibilityProjectIds) {
+    aiVisibilityObjects += await deleteProjectAiObjects(env.R2, projectId);
+  }
 
   const oauth = await deleteOauthGrants(env.OAUTH_KV, payload.userId);
   return {
     workflows: {
       auditTerminated: auditWorkflowsTerminated,
       rankTerminated: rankWorkflowsTerminated,
+      aiVisibilityTerminated: aiWorkflowsTerminated,
     },
     durableObjects: {
       sam: payload.samSessionIds.length,
-      onboarding: payload.projectIds.length,
       auditScratchpads: payload.auditIds.length,
     },
     kv: {
@@ -250,6 +251,7 @@ async function eraseStorage(env: Env, payload: GdprStorageErasurePayload) {
     },
     r2Objects: payload.r2Keys.length,
     promptCacheObjects,
+    aiVisibilityObjects,
     googleRevocations,
   };
 }
