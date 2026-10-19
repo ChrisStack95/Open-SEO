@@ -108,6 +108,9 @@ import {
   deleteSiteAuditTool,
   listSiteAuditsTool,
 } from "@/server/mcp/tools/site-audit-cleanup-tools";
+import { redirectMappingTool } from "@/server/mcp/tools/redirect-mapping";
+import { generateLlmsTxtTool } from "@/server/mcp/tools/llms-txt";
+import { checkDeadPagesTool } from "@/server/mcp/tools/dead-page-checker";
 import { whoamiTool } from "@/server/mcp/tools/whoami";
 import { explorePromptTool } from "@/server/mcp/tools/explore-prompt";
 
@@ -266,6 +269,9 @@ export function createOpenSeoMcpServer(authProps: McpProps) {
   register(getGoogleAnalyticsSiteSearchTool);
   register(getGoogleAnalyticsAudienceBreakdownTool);
   register(runSiteAuditTool);
+  register(redirectMappingTool);
+  register(generateLlmsTxtTool);
+  register(checkDeadPagesTool);
   register(listSiteAuditsTool);
   register(deleteSiteAuditTool);
   register(getAuditStatusTool);
