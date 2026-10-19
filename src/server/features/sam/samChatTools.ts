@@ -39,6 +39,8 @@ import {
   getAuditStatusTool,
   runSiteAuditTool,
 } from "@/server/mcp/tools/site-audit-tools";
+import { seoLogAuditorTool } from "@/server/mcp/tools/seo-log-auditor";
+import { strikingDistanceTool } from "@/server/mcp/tools/striking-distance";
 import { listSavedKeywordsTool } from "@/server/mcp/tools/list-saved-keywords";
 import { removeSavedKeywordsTool } from "@/server/mcp/tools/remove-saved-keywords";
 import { buildUpdateProjectContextTool } from "@/server/mcp/tools/project-context";
@@ -460,5 +462,7 @@ export function buildSamMcpTools(
     get_audit_status: waitingAuditStatusTool(adaptTool),
     get_audit_issues: adaptTool(getAuditIssuesTool),
     get_audit_pages: adaptTool(getAuditPagesTool),
+    audit_googlebot_logs: adaptTool(seoLogAuditorTool),
+    analyze_striking_distance: adaptTool(strikingDistanceTool),
   };
 }
