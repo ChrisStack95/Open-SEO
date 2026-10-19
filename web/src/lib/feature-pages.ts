@@ -47,6 +47,40 @@ export type FeaturePage = {
       href: string;
     };
   };
+  /** Per-page section headings. Each falls back to the template's default label. */
+  headings?: {
+    workflows?: string;
+    metrics?: string;
+    useCases?: string;
+    differentiators?: string;
+    related?: string;
+    faq?: string;
+  };
+  /** Free tools shown as cards under the hero. Takes the place of `featuredLink`. */
+  toolCallout?: {
+    title: string;
+    description: string;
+    links: Array<{
+      title: string;
+      description: string;
+      href: string;
+    }>;
+  };
+  /** Longer sections that answer the questions competing pages answer. */
+  contextSections?: Array<{
+    title: string;
+    body: string;
+  }>;
+  /** A data image shown with the context sections. */
+  contextImage?: {
+    src: string;
+    alt: string;
+    caption: string;
+    width: number;
+    height: number;
+  };
+  /** Emit SoftwareApplication, FAQPage and BreadcrumbList JSON-LD. */
+  structuredData?: boolean;
 };
 
 export const featurePages = {
@@ -54,7 +88,7 @@ export const featurePages = {
     slug: FEATURE_PAGE_SLUGS.keywordResearch,
     eyebrow: "Keyword Research",
     navDescription: "Find keyword ideas and SERPs.",
-    title: "Keyword research tool for practical SEO planning",
+    title: "Keyword research tool that shows the SERP behind every number",
     description:
       "Find keyword ideas, compare search volume and difficulty, inspect SERP results, and save the opportunities worth building around.",
     primaryKeyword: "keyword research tool",
@@ -100,12 +134,55 @@ export const featurePages = {
       "DataForSEO-backed metrics without locking the research process into a black box.",
       "MCP access so AI agents can research and save keywords for you.",
     ],
-    featuredLink: {
-      title: "Free competitor analysis tool",
-      description:
-        "Pull a competitor's top organic keywords and the terms they rank for that you don't. No signup required.",
-      href: "/competitor-analysis",
+    headings: {
+      workflows: "Find ideas, check the SERP, save what's worth writing",
+      metrics: "What comes with every keyword",
+      useCases: "When teams open keyword research",
+      differentiators: "Why research here instead of a $100+ suite",
+      related: "Where the research goes next",
+      faq: "Keyword research questions",
     },
+    toolCallout: {
+      title: "Start with one topic before you sign up",
+      description: "Two free tools from OpenSEO. No signup required.",
+      links: [
+        {
+          title: "Free keyword generator",
+          description:
+            "Type a topic and get up to 20 keyword ideas with search volume and difficulty.",
+          href: "/keyword-generator",
+        },
+        {
+          title: "Free competitor analysis",
+          description:
+            "See a competitor's top 20 keywords and up to 20 they rank for that you don't.",
+          href: "/competitor-analysis",
+        },
+      ],
+    },
+    contextSections: [
+      {
+        title: "Why the SERP matters more than the numbers",
+        body: 'Volume and difficulty don\'t tell you what an idea means. Seed "keyword research" and you get 300 ideas, but only 45 of them contain the word "keyword". The biggest, easiest-looking one is "research synonyms", with 14,800 searches a month and a difficulty of 0, and nobody searching it wants an SEO tool. Open the results page for an idea before you write for it. If the pages ranking don\'t match what you sell, the numbers don\'t matter.',
+      },
+      {
+        title: "How it compares with Google Keyword Planner and free tools",
+        body: "Google Keyword Planner is the free option most guides point to, and it sits inside Google Ads. OpenSEO's free keyword generator is the quick version of this tool: one topic in, up to 20 ideas out, with volume and difficulty and no account. The full tool returns up to 500 ideas per search and adds CPC, search intent and the live results page for each keyword. Full metrics cover 94 countries. Elsewhere the data comes from Google Ads, which has volume and CPC but no difficulty or intent.",
+      },
+      {
+        title: "Keyword research with ChatGPT or Claude, using real numbers",
+        body: "Ask a chat assistant for search volumes and it will guess. Connect OpenSEO over MCP and the assistant pulls keyword ideas and metrics from the same data this page uses. The keyword research skill gives it an order of work: expand a seed, check who ranks, then save the keepers to your list. You keep the conversation, and every number can be checked.",
+      },
+    ],
+    contextImage: {
+      src: "/features/keyword-research/openseo-keyword-research-ideas-on-topic.png",
+      alt: "Scatter chart of 290 keyword ideas for the seed keyword research, plotting monthly US searches against keyword difficulty. 45 ideas that contain the word keyword are orange; the rest are grey, led by research synonyms at 14,800 searches a month and difficulty 0.",
+      caption:
+        "300 ideas from one seed. The easiest, biggest ones are off-topic.",
+      width: 1600,
+      height: 900,
+    },
+    structuredData: true,
     related: [
       { label: "Keyword Clustering", href: "/docs/skills/keyword-clustering" },
       {
@@ -129,6 +206,16 @@ export const featurePages = {
         question: "Does OpenSEO show live search results?",
         answer:
           "Yes. Keyword research can be paired with SERP inspection so you can see ranking pages alongside the metrics.",
+      },
+      {
+        question: "How many keyword ideas does one search return?",
+        answer:
+          "Up to 500. You pick 150, 300 or 500 before you run the search. The free keyword generator returns up to 20 without signup.",
+      },
+      {
+        question: "Which countries have keyword data?",
+        answer:
+          "94 countries get full metrics, including keyword difficulty and search intent. Other countries are served from Google Ads data, which has search volume and CPC but no difficulty or intent.",
       },
     ],
     guides: {
