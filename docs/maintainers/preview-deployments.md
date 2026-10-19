@@ -28,14 +28,15 @@ Alchemy-managed Cloudflare Access boundary.
 Alchemy manages Cloudflare credentials itself — nothing credential-shaped goes
 in the env files.
 
-- **Locally**, run `pnpm alchemy login` once. Answer yes to
-  **Customize OAuth scopes?** and enable `access:write` on top of the defaults
-  (the preview Access gate needs it; add `query_cache:write` too if you will
-  deploy production — Hyperdrive). The credential is stored globally, and
-  later runs — including non-interactive ones — reuse it silently.
+- **Locally**, run
+  `pnpm alchemy profile edit --add Cloudflare --config deploy/alchemy/alchemy.run.ts`
+  once. Choose **OAuth**, then **All Scopes** (the preview Access gate needs
+  `access.write`, which **Basic** omits; production's Hyperdrive needs
+  `query-cache.write`). The credential is stored globally, and later runs —
+  including non-interactive ones — reuse it silently.
 - **State** lives in the account's Cloudflare state store (an
   `alchemy-state-store` Worker with embedded SQLite), shared by every machine
-  and CI — provision it once with `pnpm alchemy cloudflare bootstrap`. It
+  and CI — provision it once with `pnpm alchemy provider cloudflare bootstrap`. It
   mints an auth token and encryption key into the account Secrets Store;
   local runs cache credentials under `~/.alchemy/`.
 - **In GitHub Actions**, the runner's `CI` env makes alchemy read
@@ -79,7 +80,7 @@ requested application stage and cannot touch the Access stack.
 ## Local preview
 
 ```sh
-pnpm alchemy login    # once — see Credentials above
+pnpm alchemy profile edit --add Cloudflare --config deploy/alchemy/alchemy.run.ts    # once — see Credentials above
 cp deploy/.env.preview.example .env.preview
 pnpm preview:access   # once — the shared Access gate (safe to re-run)
 pnpm deploy:preview --stage manual-preview --yes
@@ -158,8 +159,8 @@ pnpm deploy:postgres
 The script runs the Postgres migrations (`db:migrate:pg`), builds, and then
 `alchemy deploy --env-file .env.production --stage hosted-prod --adopt` —
 `--adopt` and the stage are baked in so they cannot be forgotten, and alchemy
-shows the plan for approval before applying. It uses the same
-`pnpm alchemy login` credential as previews (make sure `query_cache:write`
+shows the plan for approval before applying. It uses the same Cloudflare
+credentials as previews (make sure `query-cache.write`
 was enabled for Hyperdrive).
 
 ### First-cutover checklist (one time)

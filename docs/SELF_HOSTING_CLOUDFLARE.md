@@ -36,11 +36,11 @@ pnpm install
 ## 2) Log in to Cloudflare (once)
 
 ```bash
-pnpm alchemy login                # answer yes to "Customize OAuth scopes?" and enable access:write
-pnpm alchemy cloudflare bootstrap # deploys alchemy's state-store Worker to your account
+pnpm alchemy profile edit --add Cloudflare --config deploy/alchemy/alchemy.run.ts # choose OAuth, then All Scopes
+pnpm alchemy provider cloudflare bootstrap                                        # deploys alchemy's state-store Worker to your account
 ```
 
-Already logged in from before without the `access:write` scope? Run `pnpm alchemy login --configure` — a plain repeat login doesn't re-ask about scopes.
+`profile edit` needs the stack entry point (`deploy/alchemy/alchemy.run.ts`); without it alchemy looks for a root `alchemy.run.ts` and fails. Choose **OAuth**, then **All Scopes** — the managed Access gate needs `access.write`, which the Basic set omits (pick **Custom Scopes** and keep it selected to narrow the grant). Already logged in without the Access scope? Run `pnpm alchemy profile edit --reconfigure Cloudflare --config deploy/alchemy/alchemy.run.ts` — a plain `--add` keeps the existing scopes.
 
 ## 3) Create `.env.selfhost`
 
@@ -68,6 +68,19 @@ To manage the Access application yourself instead, set `TEAM_DOMAIN` (`https://y
 
 If it doesn't, see Troubleshooting below.
 
+## Custom domain (optional)
+
+Set `CUSTOM_DOMAIN=openseo.example.com` in `.env.selfhost` and redeploy. The
+domain's zone must already be in the same Cloudflare account. The Worker is
+served on that hostname, and the Cloudflare Access application is extended to
+protect it, so the same allow-list applies to both the custom domain and the
+`*.workers.dev` hostname. For Google Search Console or Analytics, register the
+custom domain's callback URLs on the Google OAuth client:
+`https://<domain>/api/gsc/oauth/callback` and
+`https://<domain>/api/ga4/oauth/callback`. For Bing Webmaster OAuth, register
+`https://<domain>/api/bing/oauth/callback` on the Bing OAuth client (one URI
+per client) — see `docs/SELF_HOSTING_BING_WEBMASTER.md`.
+
 ## Updating to the latest OpenSEO version
 
 ```bash
@@ -91,7 +104,7 @@ Everyone allowed through Cloudflare Access works in one shared workspace and see
 ## Tearing it down
 
 ```bash
-pnpm alchemy destroy --env-file .env.selfhost --stage selfhost
+pnpm alchemy destroy deploy/alchemy/alchemy.run.ts --env-file .env.selfhost --stage selfhost
 ```
 
 This deletes the Workers, the stage-suffixed D1/KV/R2 resources (including your data), and the Access application.
