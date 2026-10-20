@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GscApiError, GscNotConnectedError } from "@/server/lib/gscErrors";
+import { objectSchema } from "@/server/mcp/output-schemas";
 import * as searchConsoleTools from "./search-console-tools";
 import { makeToolContext, textContent } from "./tool-test-support";
 
@@ -257,6 +258,11 @@ describe("search console MCP tools", () => {
     expect(result.structuredContent).toMatchObject({
       reason: "gsc_oauth_not_configured",
     });
+    await expect(
+      objectSchema(
+        getSearchConsolePerformanceTool.config.outputSchema,
+      ).safeParseAsync(result.structuredContent),
+    ).resolves.toMatchObject({ success: true });
     expect(mocks.GscService.getPerformance).not.toHaveBeenCalled();
   });
 
@@ -355,6 +361,11 @@ describe("search console MCP tools", () => {
     expect(result.structuredContent).toMatchObject({
       reason: "gsc_oauth_not_configured",
     });
+    await expect(
+      objectSchema(inspectUrlsTool.config.outputSchema).safeParseAsync(
+        result.structuredContent,
+      ),
+    ).resolves.toMatchObject({ success: true });
     expect(mocks.GscService.inspectUrls).not.toHaveBeenCalled();
   });
 });

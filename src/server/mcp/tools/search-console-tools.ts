@@ -73,7 +73,6 @@ async function missingSelfHostedGoogleClientResponse(
     meta: buildProjectMeta(context, projectId),
     structuredContent: {
       ok: false,
-      connected: false,
       reason: "gsc_oauth_not_configured",
       setupDocsUrl: GSC_SELF_HOSTED_SETUP_DOCS_URL,
     },
